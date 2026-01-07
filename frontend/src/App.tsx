@@ -29,7 +29,7 @@ export default function App() {
   });
   const [user, setUser] = useState<User | null>(null);
 
-  useEffect(() => {
+  const refreshUser = () => {
     if (!tokens) return;
     getMe(tokens.access_token)
       .then((data) => setUser(data))
@@ -38,6 +38,10 @@ export default function App() {
         setUser(null);
         localStorage.removeItem(TOKEN_KEY);
       });
+  };
+
+  useEffect(() => {
+    refreshUser();
   }, [tokens]);
 
   const handleLogin = (newTokens: Tokens) => {
@@ -60,7 +64,13 @@ export default function App() {
   }
 
   return (
-    <Layout role={user.role} onLogout={handleLogout} mustChangePassword={user.must_change_password}>
+    <Layout
+      role={user.role}
+      accessToken={tokens.access_token}
+      onLogout={handleLogout}
+      onPasswordChanged={refreshUser}
+      mustChangePassword={user.must_change_password}
+    >
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/calls" element={<CallsPage />} />
