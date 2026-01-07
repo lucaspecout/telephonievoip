@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        env_parse_json = False
 
     @field_validator("cors_origins", mode="before")
     def parse_cors_origins(cls, value: object) -> List[str]:
