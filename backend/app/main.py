@@ -25,12 +25,12 @@ if STATIC_DIR.exists():
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 
-def ensure_default_admin() -> None:
+def ensure_default_admin() -> str | None:
     db = SessionLocal()
     try:
         existing = db.query(User).filter(User.username == "admin").first()
         if existing:
-            return
+            return None
         generated_password = secrets.token_urlsafe(12)
         user = User(
             username="admin",
@@ -40,7 +40,7 @@ def ensure_default_admin() -> None:
         )
         db.add(user)
         db.commit()
-        print(f"Default admin created. Username: admin Password: {generated_password}")
+        return generated_password
     finally:
         db.close()
 
@@ -48,7 +48,17 @@ def ensure_default_admin() -> None:
 @app.on_event("startup")
 def startup_event() -> None:
     Base.metadata.create_all(bind=engine)
-    ensure_default_admin()
+    generated_password = ensure_default_admin()
+    if generated_password:
+        print(
+            "Default admin created. Username: admin "
+            f"Password: {generated_password}"
+        )
+    print(
+        "Web container started. "
+        f"Service: {settings.app_name} | "
+        "Listening on http://0.0.0.0:8000"
+    )
 
 
 @app.get("/me", response_model=UserBase)
