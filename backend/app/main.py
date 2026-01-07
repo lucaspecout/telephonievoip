@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import secrets
 from app.core.config import settings
 from app.api import auth, users, settings as ovh_settings, calls, dashboard, health
 from fastapi import Depends
@@ -30,14 +31,16 @@ def ensure_default_admin() -> None:
         existing = db.query(User).filter(User.username == "admin").first()
         if existing:
             return
+        generated_password = secrets.token_urlsafe(12)
         user = User(
             username="admin",
-            hashed_password=hash_password("admin"),
+            hashed_password=hash_password(generated_password),
             role="ADMIN",
             must_change_password=True,
         )
         db.add(user)
         db.commit()
+        print(f"Default admin created. Username: admin Password: {generated_password}")
     finally:
         db.close()
 
