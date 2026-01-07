@@ -8,7 +8,7 @@ def log_event(db: Session, action: str, status: str, message: str = "", user_id:
         action=action,
         status=status,
         message=message,
-        metadata=metadata or {},
+        details=metadata or {},
     )
     db.add(entry)
     db.commit()
