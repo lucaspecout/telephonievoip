@@ -1,6 +1,8 @@
-from pydantic_settings import BaseSettings
-from pydantic import AnyUrl
+import json
 from typing import List
+
+from pydantic import AnyUrl, field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -18,6 +20,21 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+
+    @field_validator("cors_origins", mode="before")
+    def parse_cors_origins(cls, value: object) -> List[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if cleaned == "":
+                return []
+            if cleaned.startswith("["):
+                return json.loads(cleaned)
+            return [item.strip() for item in cleaned.split(",") if item.strip()]
+        return [str(value)]
 
 
 settings = Settings()
