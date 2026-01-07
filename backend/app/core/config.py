@@ -2,7 +2,7 @@ import json
 from typing import List
 
 from pydantic import AnyUrl, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -17,10 +17,11 @@ class Settings(BaseSettings):
     allow_csv_export_for_operators: bool = False
     log_level: str = "INFO"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        env_parse_json = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        env_parse_json=False,
+    )
 
     @field_validator("cors_origins", mode="before")
     def parse_cors_origins(cls, value: object) -> List[str]:
