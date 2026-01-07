@@ -18,9 +18,8 @@ make migrate
 make create-admin
 ```
 
-Accès:
-- Frontend: http://localhost:5173 (ou via votre reverse proxy)
-- API: http://localhost:8000 (ou via votre reverse proxy)
+Accès (docker-compose):
+- Interface web + API: http://localhost:1128
 
 ### Premier compte admin
 Par défaut, le compte admin est créé avec `admin / admin` et le flag `must_change_password` est activé. Changez le mot de passe dès la première connexion.
