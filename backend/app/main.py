@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.api import auth, users, settings as ovh_settings, calls, dashboard, health
 from fastapi import Depends
-from app.core.database import SessionLocal
+from app.core.database import Base, SessionLocal, engine
 from app.core.deps import get_current_user
 from app.core.security import hash_password
 from app.models import User
@@ -44,6 +44,7 @@ def ensure_default_admin() -> None:
 
 @app.on_event("startup")
 def startup_event() -> None:
+    Base.metadata.create_all(bind=engine)
     ensure_default_admin()
 
 
