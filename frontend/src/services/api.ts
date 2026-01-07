@@ -26,3 +26,18 @@ export async function getMe(accessToken: string) {
   }
   return response.json();
 }
+
+export async function changePassword(accessToken: string, newPassword: string) {
+  const response = await fetch(`${API_BASE}/users/me/change-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ new_password: newPassword })
+  });
+  if (!response.ok) {
+    throw new Error("Password change failed");
+  }
+  return response.json();
+}

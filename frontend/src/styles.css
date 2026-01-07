@@ -56,6 +56,52 @@ body {
   margin-bottom: 16px;
 }
 
+.password-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.password-card {
+  background: #fff;
+  padding: 32px;
+  border-radius: 16px;
+  width: min(420px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 20px 30px rgba(15, 23, 42, 0.2);
+}
+
+.password-card h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.password-card p {
+  margin: 0 0 4px;
+  color: #475569;
+}
+
+.password-card input {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5f5;
+}
+
+.password-card button {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
 .kpi-grid {
   display: grid;
   gap: 16px;

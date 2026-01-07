@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.api import auth, users, settings as ovh_settings, calls, dashboard, health
 from fastapi import Depends
+from app.core.database import SessionLocal
 from app.core.deps import get_current_user
+from app.core.security import hash_password
 from app.models import User
 from app.schemas import UserBase
 from pathlib import Path
@@ -20,6 +22,29 @@ app.include_router(health.router)
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 if STATIC_DIR.exists():
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+
+def ensure_default_admin() -> None:
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.username == "admin").first()
+        if existing:
+            return
+        user = User(
+            username="admin",
+            hashed_password=hash_password("admin"),
+            role="ADMIN",
+            must_change_password=True,
+        )
+        db.add(user)
+        db.commit()
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+def startup_event() -> None:
+    ensure_default_admin()
 
 
 @app.get("/me", response_model=UserBase)
