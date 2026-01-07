@@ -5,6 +5,8 @@ from fastapi import Depends
 from app.core.deps import get_current_user
 from app.models import User
 from app.schemas import UserBase
+from pathlib import Path
+from starlette.staticfiles import StaticFiles
 
 app = FastAPI(title=settings.app_name)
 
@@ -14,6 +16,10 @@ app.include_router(ovh_settings.router)
 app.include_router(calls.router)
 app.include_router(dashboard.router)
 app.include_router(health.router)
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 
 @app.get("/me", response_model=UserBase)
