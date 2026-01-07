@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  postgres:
+  db:
     image: postgres:16
     environment:
       POSTGRES_DB: telephonievoip
@@ -17,52 +17,19 @@ services:
     ports:
       - "6379:6379"
 
-  backend:
+  web:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/telephonievoip
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/telephonievoip
       REDIS_URL: redis://redis:6379/0
     volumes:
       - ./backend:/app
     depends_on:
-      - postgres
+      - db
       - redis
     ports:
-      - "8000:8000"
-
-  worker:
-    build: ./backend
-    command: ["celery", "-A", "celery_app.celery_app", "worker", "--loglevel=INFO"]
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/telephonievoip
-      REDIS_URL: redis://redis:6379/0
-    depends_on:
-      - backend
-      - redis
-
-  scheduler:
-    build: ./backend
-    command: ["celery", "-A", "celery_app.celery_app", "beat", "--loglevel=INFO"]
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/telephonievoip
-      REDIS_URL: redis://redis:6379/0
-    depends_on:
-      - backend
-      - redis
-
-  frontend:
-    build: ./frontend
-    environment:
-      VITE_API_BASE: http://localhost:8000
-    volumes:
-      - ./frontend:/app
-    depends_on:
-      - backend
-    ports:
-      - "5173:5173"
+      - "1128:8000"
 
 volumes:
   postgres_data:
