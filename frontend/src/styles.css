@@ -92,11 +92,28 @@ td {
 }
 
 .badge {
-  background: #ef4444;
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 4px 8px;
   border-radius: 8px;
   font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.badge-success {
+  background: #22c55e;
+  color: #fff;
+}
+
+.badge-neutral {
+  background: #e5e7eb;
+  color: #111827;
 }
 
 .login {
@@ -165,6 +182,29 @@ button {
   padding: 12px;
   background: #f9fafb;
   border-radius: 8px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.status-item {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-good {
+  color: #16a34a;
+}
+
+.status-bad {
+  color: #dc2626;
 }
 
 .row {

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -54,7 +54,12 @@ async def sync_consumptions(db: Session, publish) -> None:
         return
     client = OVHClient(settings_row, settings.ovh_endpoint)
     try:
-        consumptions = client.list_consumptions()
+        range_end = datetime.utcnow()
+        if settings_row.last_sync_at:
+            range_start = settings_row.last_sync_at - timedelta(minutes=10)
+        else:
+            range_start = range_end - timedelta(days=7)
+        consumptions = client.list_consumptions(range_start, range_end)
         new_count = 0
         for service_name, consumption_id in consumptions:
             existing = (

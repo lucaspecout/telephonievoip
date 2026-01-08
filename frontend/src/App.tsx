@@ -100,7 +100,7 @@ const App = () => {
         </div>
       </aside>
       <main>
-        {page === 'dashboard' && <Dashboard token={token} />}
+        {page === 'dashboard' && <Dashboard token={token} isAdmin={isAdmin} />}
         {page === 'calls' && <Calls token={token} isAdmin={isAdmin} />}
         {page === 'users' && isAdmin && <Users token={token} />}
         {page === 'settings' && isAdmin && <OvhSettings token={token} />}
@@ -179,7 +179,7 @@ const ChangePassword = ({ token, onDone }: { token: string; onDone: () => void }
   )
 }
 
-const Dashboard = ({ token }: { token: string }) => {
+const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   const [summary, setSummary] = useState<{
     today_total: number
     today_missed: number
@@ -190,16 +190,22 @@ const Dashboard = ({ token }: { token: string }) => {
     { date: string; total: number; missed: number }[]
   >([])
   const [latestCalls, setLatestCalls] = useState<any[]>([])
+  const [ovhStatus, setOvhStatus] = useState<{
+    last_sync_at?: string | null
+    last_error?: string | null
+  } | null>(null)
 
   const reload = async () => {
-    const [summaryData, timeseriesData, callsData] = await Promise.all([
+    const [summaryData, timeseriesData, callsData, ovhData] = await Promise.all([
       fetchDashboardSummary(token),
       fetchDashboardTimeseries(token),
-      fetchCalls(token, { page: 1, page_size: 5 })
+      fetchCalls(token, { page: 1, page_size: 5 }),
+      isAdmin ? fetchOvhSettings(token) : Promise.resolve(null)
     ])
     setSummary(summaryData)
     setTimeseries(timeseriesData)
     setLatestCalls(callsData)
+    setOvhStatus(ovhData)
   }
 
   useEffect(() => {
@@ -215,11 +221,38 @@ const Dashboard = ({ token }: { token: string }) => {
     <div>
       <h2>Dashboard</h2>
       <div className="kpi-grid">
-        <Kpi label="Appels aujourd'hui" value={summary.today_total} />
-        <Kpi label="Manqués aujourd'hui" value={summary.today_missed} />
-        <Kpi label="Appels 7 jours" value={summary.week_total} />
-        <Kpi label="Manqués 7 jours" value={summary.week_missed} />
+        <Kpi label="📞 Appels aujourd'hui" value={summary.today_total} />
+        <Kpi label="🚨 Manqués aujourd'hui" value={summary.today_missed} />
+        <Kpi label="📆 Appels 7 jours" value={summary.week_total} />
+        <Kpi label="😓 Manqués 7 jours" value={summary.week_missed} />
       </div>
+      {isAdmin && (
+        <section className="card">
+          <h3>Statut OVH</h3>
+          <div className="status-grid">
+            <div className="status-item">
+              <span>Connexion</span>
+              <strong className={ovhStatus?.last_error ? 'status-bad' : 'status-good'}>
+                {ovhStatus?.last_error ? '⚠️ Erreur' : '✅ OK'}
+              </strong>
+            </div>
+            <div className="status-item">
+              <span>Dernière synchro</span>
+              <strong>
+                {ovhStatus?.last_sync_at
+                  ? new Date(ovhStatus.last_sync_at).toLocaleString()
+                  : '⏳ En attente'}
+              </strong>
+            </div>
+            <div className="status-item">
+              <span>Dernier message</span>
+              <strong className={ovhStatus?.last_error ? 'status-bad' : ''}>
+                {ovhStatus?.last_error ? `🧯 ${ovhStatus.last_error}` : 'Rien à signaler'}
+              </strong>
+            </div>
+          </div>
+        </section>
+      )}
       <section className="card">
         <h3>Appels par jour</h3>
         <div className="timeseries">
@@ -242,20 +275,18 @@ const Dashboard = ({ token }: { token: string }) => {
               <th>Appelant</th>
               <th>Appelé</th>
               <th>Durée</th>
-              <th>Manqué</th>
+              <th>Statut</th>
             </tr>
           </thead>
           <tbody>
             {latestCalls.map((call) => (
               <tr key={call.id}>
                 <td>{new Date(call.started_at).toLocaleString()}</td>
-                <td>{call.direction}</td>
+                <td>{formatDirection(call.direction)}</td>
                 <td>{call.calling_number}</td>
                 <td>{call.called_number}</td>
                 <td>{call.duration}s</td>
-                <td>
-                  {call.is_missed ? <span className="badge">Manqué</span> : '-'}
-                </td>
+                <td>{formatCallStatus(call)}</td>
               </tr>
             ))}
           </tbody>
@@ -271,6 +302,23 @@ const Kpi = ({ label, value }: { label: string; value: number }) => (
     <strong>{value}</strong>
   </div>
 )
+
+const formatDirection = (direction: string) =>
+  direction === 'OUTBOUND' ? '📤 Sortant' : '📥 Entrant'
+
+const formatCallStatus = (call: any) => {
+  if (call.is_missed) {
+    return <span className="badge badge-danger">❌ Manqué</span>
+  }
+  const status = call.status ? String(call.status).toLowerCase() : ''
+  if (status.includes('answered') || status.includes('completed')) {
+    return <span className="badge badge-success">✅ Répondu</span>
+  }
+  if (status) {
+    return <span className="badge badge-neutral">ℹ️ {call.status}</span>
+  }
+  return <span className="badge badge-neutral">✅ Répondu</span>
+}
 
 const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   const [calls, setCalls] = useState<any[]>([])
@@ -354,11 +402,11 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
           {calls.map((call) => (
             <tr key={call.id}>
               <td>{new Date(call.started_at).toLocaleString()}</td>
-              <td>{call.direction}</td>
+              <td>{formatDirection(call.direction)}</td>
               <td>{call.calling_number}</td>
               <td>{call.called_number}</td>
               <td>{call.duration}s</td>
-              <td>{call.status}</td>
+              <td>{formatCallStatus(call)}</td>
               <td>{call.is_missed ? 'Oui' : 'Non'}</td>
             </tr>
           ))}
