@@ -255,17 +255,25 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   return (
     <div>
       <h2>Dashboard</h2>
-      <div className="kpi-grid">
-        <Kpi label="📞 Appels aujourd'hui" value={summary.today_total} />
-        <Kpi label="🚨 Manqués aujourd'hui" value={summary.today_missed} />
-        <Kpi label="📥 Entrants aujourd'hui" value={summary.today_inbound} />
-        <Kpi label="📤 Sortants aujourd'hui" value={summary.today_outbound} />
-        <Kpi label="📆 Appels 7 jours" value={summary.week_total} />
-        <Kpi label="😓 Manqués 7 jours" value={summary.week_missed} />
-        <Kpi label="📥 Entrants 7 jours" value={summary.week_inbound} />
-        <Kpi label="📤 Sortants 7 jours" value={summary.week_outbound} />
-        <Kpi label="⏱️ Durée moyenne (jour)" value={formatDuration(summary.today_avg_duration)} />
-        <Kpi label="⏱️ Durée moyenne (7j)" value={formatDuration(summary.week_avg_duration)} />
+      <div className="kpi-section">
+        <h3>Aujourd'hui</h3>
+        <div className="kpi-grid">
+          <Kpi label="📞 Appels" value={summary.today_total} />
+          <Kpi label="🚨 Manqués" value={summary.today_missed} />
+          <Kpi label="📥 Entrants" value={summary.today_inbound} />
+          <Kpi label="📤 Sortants" value={summary.today_outbound} />
+          <Kpi label="⏱️ Durée moyenne" value={formatDuration(summary.today_avg_duration)} />
+        </div>
+      </div>
+      <div className="kpi-section">
+        <h3>7 jours</h3>
+        <div className="kpi-grid">
+          <Kpi label="📆 Appels" value={summary.week_total} />
+          <Kpi label="😓 Manqués" value={summary.week_missed} />
+          <Kpi label="📥 Entrants" value={summary.week_inbound} />
+          <Kpi label="📤 Sortants" value={summary.week_outbound} />
+          <Kpi label="⏱️ Durée moyenne" value={formatDuration(summary.week_avg_duration)} />
+        </div>
       </div>
       {isAdmin && (
         <section className="card">
