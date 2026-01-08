@@ -74,6 +74,7 @@ async def sync_consumptions(db: Session, publish) -> None:
         settings_row.last_sync_at = datetime.utcnow()
         settings_row.last_error = None
         db.commit()
+        await publish({"type": "sync_complete", "payload": {"new_count": new_count}})
         if new_count:
             await publish({"type": "summary_updated"})
     except Exception as exc:

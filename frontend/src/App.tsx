@@ -10,6 +10,7 @@ import {
   login,
   saveOvhSettings,
   testOvhSettings,
+  triggerSync,
   createUser,
   updateUser,
   exportCallsCsv
@@ -454,6 +455,14 @@ const OvhSettings = ({ token }: { token: string }) => {
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [testLogs, setTestLogs] = useState<string[]>([])
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'pending' | 'error'>('idle')
+
+  const formatSyncTime = (value?: string | null) => {
+    if (!value) return '—'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return value
+    return parsed.toLocaleString()
+  }
 
   const load = async () => {
     const data = await fetchOvhSettings(token)
@@ -462,6 +471,32 @@ const OvhSettings = ({ token }: { token: string }) => {
 
   useEffect(() => {
     load()
+  }, [])
+
+  useEffect(() => {
+    const ws = new WebSocket(wsUrl())
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'sync_complete') {
+          setSyncStatus('idle')
+          setMessage(
+            data.payload?.new_count
+              ? `Synchronisation terminée (${data.payload.new_count} nouvel(s) appel(s))`
+              : 'Synchronisation terminée'
+          )
+          load()
+        }
+        if (data.type === 'sync_error') {
+          setSyncStatus('error')
+          setErrorMessage(data.payload?.message || 'Erreur de synchronisation')
+          load()
+        }
+      } catch {
+        load()
+      }
+    }
+    return () => ws.close()
   }, [])
 
   if (!settings) return <div>Chargement...</div>
@@ -535,7 +570,27 @@ const OvhSettings = ({ token }: { token: string }) => {
             Tester connexion
           </button>
         </div>
-        <p>Dernière sync: {settings.last_sync_at || '—'}</p>
+        <div className="row">
+          <button
+            onClick={async () => {
+              setMessage('')
+              setErrorMessage('')
+              setSyncStatus('pending')
+              try {
+                await triggerSync(token)
+                setMessage('Synchronisation demandée')
+              } catch (error) {
+                const err = error as Error
+                setErrorMessage(err.message || 'Erreur lors de la synchronisation')
+                setSyncStatus('error')
+              }
+            }}
+            disabled={syncStatus === 'pending'}
+          >
+            {syncStatus === 'pending' ? 'Synchronisation en cours...' : 'Forcer la sync'}
+          </button>
+        </div>
+        <p>Dernière sync: {formatSyncTime(settings.last_sync_at)}</p>
         <p>Erreurs récentes: {settings.last_error || '—'}</p>
         {message && <p className="success">{message}</p>}
         {errorMessage && <p className="error">{errorMessage}</p>}

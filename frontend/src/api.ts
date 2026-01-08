@@ -147,3 +147,12 @@ export const testOvhSettings = async (token: string) => {
   }
   return payload
 }
+
+export const triggerSync = async (token: string) => {
+  const response = await fetch(`${API_BASE}/sync`, {
+    method: 'POST',
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('Sync failed')
+  return response.json()
+}
