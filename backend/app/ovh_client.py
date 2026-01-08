@@ -29,6 +29,9 @@ class OVHClient:
                 consumptions.append((service_name, str(consumption_id)))
         return consumptions
 
+    def list_consumption_ids(self) -> List[Tuple[str, str]]:
+        return self.list_consumptions()
+
     def get_me(self) -> Dict[str, Any]:
         return self._client.get("/me")
 
