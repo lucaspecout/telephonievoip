@@ -575,10 +575,10 @@ const OvhSettings = ({ token }: { token: string }) => {
             onClick={async () => {
               setMessage('')
               setErrorMessage('')
+              setMessage('Synchronisation en cours...')
               setSyncStatus('pending')
               try {
                 await triggerSync(token)
-                setMessage('Synchronisation demandée')
               } catch (error) {
                 const err = error as Error
                 setErrorMessage(err.message || 'Erreur lors de la synchronisation')
