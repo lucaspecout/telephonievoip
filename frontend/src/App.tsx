@@ -38,7 +38,7 @@ const wsUrl = () => {
   return `${protocol}://${window.location.host}/ws`
 }
 
-const AUTO_REFRESH_INTERVAL_MS = 30000
+const AUTO_REFRESH_INTERVAL_MS = 3000
 
 const App = () => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
