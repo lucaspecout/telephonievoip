@@ -150,6 +150,22 @@ button {
   cursor: pointer;
 }
 
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.button-link:hover {
+  background: #1d4ed8;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;

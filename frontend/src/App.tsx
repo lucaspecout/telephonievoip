@@ -52,9 +52,6 @@ const App = () => {
     fetchMe(token)
       .then((me) => {
         setUser(me)
-        if (me.must_change_password) {
-          setPage('changePassword')
-        }
       })
       .catch(() => setToken(null))
   }, [token])
@@ -70,6 +67,7 @@ const App = () => {
             const result = await login(username, password)
             localStorage.setItem('token', result.access_token)
             setToken(result.access_token)
+            setPage('dashboard')
           } catch (err) {
             setError('Identifiants invalides')
           }
@@ -258,13 +256,13 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
         </section>
       )}
       <section className="card">
-        <h3>Appels par jour</h3>
+        <h3>Appels quotidiens</h3>
         <div className="timeseries">
           {timeseries.map((point) => (
             <div key={point.date} className="timeseries-item">
               <span>{point.date}</span>
               <strong>{point.total}</strong>
-              <small>Manqués: {point.missed}</small>
+              <small>Manqués : {point.missed}</small>
             </div>
           ))}
         </div>
@@ -280,6 +278,7 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
               <th>Appelé</th>
               <th>Durée</th>
               <th>Statut</th>
+              <th>Rappeler</th>
             </tr>
           </thead>
           <tbody>
@@ -287,10 +286,23 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
               <tr key={call.id}>
                 <td>{new Date(call.started_at).toLocaleString()}</td>
                 <td>{formatDirection(call.direction)}</td>
-                <td>{call.calling_number}</td>
-                <td>{call.called_number}</td>
+                <td>{formatFrenchNumber(call.calling_number)}</td>
+                <td>{formatFrenchNumber(call.called_number)}</td>
                 <td>{call.duration}s</td>
                 <td>{formatCallStatus(call)}</td>
+                <td>
+                  {(() => {
+                    const callbackNumber = getCallbackNumber(call)
+                    const dialable = toDialableNumber(callbackNumber)
+                    return dialable ? (
+                      <a className="button-link" href={`tel:${dialable}`}>
+                        Rappeler
+                      </a>
+                    ) : (
+                      '—'
+                    )
+                  })()}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -309,6 +321,42 @@ const Kpi = ({ label, value }: { label: string; value: number }) => (
 
 const formatDirection = (direction: string) =>
   direction === 'OUTBOUND' ? '📤 Sortant' : '📥 Entrant'
+
+const toDialableNumber = (value?: string | null) => {
+  if (!value) return ''
+  let cleaned = value.replace(/[^+\d]/g, '')
+  if (cleaned.startsWith('00')) {
+    cleaned = `+${cleaned.slice(2)}`
+  }
+  if (cleaned.startsWith('0') && cleaned.length === 10) {
+    return `+33${cleaned.slice(1)}`
+  }
+  if (cleaned.startsWith('33') && cleaned.length === 11) {
+    return `+${cleaned}`
+  }
+  return cleaned
+}
+
+const formatFrenchNumber = (value?: string | null) => {
+  if (!value) return '—'
+  let cleaned = value.replace(/[^+\d]/g, '')
+  if (cleaned.startsWith('00')) {
+    cleaned = `+${cleaned.slice(2)}`
+  }
+  if (cleaned.startsWith('+33')) {
+    cleaned = `0${cleaned.slice(3)}`
+  } else if (cleaned.startsWith('33') && cleaned.length === 11) {
+    cleaned = `0${cleaned.slice(2)}`
+  }
+  const digits = cleaned.replace(/\D/g, '')
+  if (digits.length === 10 && digits.startsWith('0')) {
+    return digits.replace(/(\d{2})(?=\d)/g, '$1 ').trim()
+  }
+  return value
+}
+
+const getCallbackNumber = (call: any) =>
+  call.direction === 'OUTBOUND' ? call.called_number : call.calling_number
 
 const formatCallStatus = (call: any) => {
   if (call.is_missed) {
@@ -397,25 +445,39 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
             <th>Direction</th>
             <th>Appelant</th>
             <th>Appelé</th>
-            <th>Durée</th>
-            <th>Statut</th>
-            <th>Manqué</th>
-          </tr>
-        </thead>
-        <tbody>
-          {calls.map((call) => (
-            <tr key={call.id}>
-              <td>{new Date(call.started_at).toLocaleString()}</td>
-              <td>{formatDirection(call.direction)}</td>
-              <td>{call.calling_number}</td>
-              <td>{call.called_number}</td>
-              <td>{call.duration}s</td>
-              <td>{formatCallStatus(call)}</td>
-              <td>{call.is_missed ? 'Oui' : 'Non'}</td>
+              <th>Durée</th>
+              <th>Statut</th>
+              <th>Manqué</th>
+              <th>Rappeler</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {calls.map((call) => (
+              <tr key={call.id}>
+                <td>{new Date(call.started_at).toLocaleString()}</td>
+                <td>{formatDirection(call.direction)}</td>
+                <td>{formatFrenchNumber(call.calling_number)}</td>
+                <td>{formatFrenchNumber(call.called_number)}</td>
+                <td>{call.duration}s</td>
+                <td>{formatCallStatus(call)}</td>
+                <td>{call.is_missed ? 'Oui' : 'Non'}</td>
+                <td>
+                  {(() => {
+                    const callbackNumber = getCallbackNumber(call)
+                    const dialable = toDialableNumber(callbackNumber)
+                    return dialable ? (
+                      <a className="button-link" href={`tel:${dialable}`}>
+                        Rappeler
+                      </a>
+                    ) : (
+                      '—'
+                    )
+                  })()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       <div className="pagination">
         <button onClick={() => setPage(Math.max(1, page - 1))}>Précédent</button>
         <span>Page {page}</span>
