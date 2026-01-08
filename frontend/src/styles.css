@@ -1,0 +1,173 @@
+:root {
+  font-family: 'Inter', sans-serif;
+  color: #1f2937;
+  background: #f4f6f8;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  background: #111827;
+  color: #fff;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar h1 {
+  font-size: 20px;
+}
+
+.sidebar nav button {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: none;
+  background: #1f2937;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+main {
+  flex: 1;
+  padding: 32px;
+}
+
+.card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi {
+  background: #fff;
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+}
+
+.kpi strong {
+  display: block;
+  font-size: 24px;
+  margin-top: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.badge {
+  background: #ef4444;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.login {
+  max-width: 360px;
+  margin: 80px auto;
+  padding: 32px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+input,
+select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+}
+
+button {
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.error {
+  color: #dc2626;
+}
+
+.success {
+  color: #16a34a;
+}
+
+.timeseries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.timeseries-item {
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
