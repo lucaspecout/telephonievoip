@@ -22,6 +22,9 @@ class OVHClient:
             serviceName=self._service_names(),
         )
 
+    def get_me(self) -> Dict[str, Any]:
+        return self._client.get("/me")
+
     def get_consumption_detail(self, consumption_id: str) -> Dict[str, Any]:
         return self._client.get(
             f"/telephony/{self.settings.billing_account}/voiceConsumption/{consumption_id}"

@@ -446,6 +446,8 @@ const Users = ({ token }: { token: string }) => {
 const OvhSettings = ({ token }: { token: string }) => {
   const [settings, setSettings] = useState<any>(null)
   const [message, setMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [testLogs, setTestLogs] = useState<string[]>([])
 
   const load = async () => {
     const data = await fetchOvhSettings(token)
@@ -510,8 +512,18 @@ const OvhSettings = ({ token }: { token: string }) => {
           </button>
           <button
             onClick={async () => {
-              await testOvhSettings(token)
-              setMessage('Connexion OK')
+              setMessage('')
+              setErrorMessage('')
+              setTestLogs([])
+              try {
+                const result = await testOvhSettings(token)
+                setMessage('Connexion OK')
+                setTestLogs(result?.logs || [])
+              } catch (error) {
+                const err = error as Error & { logs?: string[] }
+                setErrorMessage(err.message || 'Test failed')
+                setTestLogs(err.logs || [])
+              }
             }}
           >
             Tester connexion
@@ -520,6 +532,13 @@ const OvhSettings = ({ token }: { token: string }) => {
         <p>Dernière sync: {settings.last_sync_at || '—'}</p>
         <p>Erreurs récentes: {settings.last_error || '—'}</p>
         {message && <p className="success">{message}</p>}
+        {errorMessage && <p className="error">{errorMessage}</p>}
+        {testLogs.length > 0 && (
+          <div className="log-block">
+            <p>Logs de test:</p>
+            <pre>{testLogs.join('\n')}</pre>
+          </div>
+        )}
       </div>
     </div>
   )

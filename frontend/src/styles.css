@@ -171,3 +171,17 @@ button {
   display: flex;
   gap: 12px;
 }
+
+.log-block {
+  margin-top: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.log-block pre {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
