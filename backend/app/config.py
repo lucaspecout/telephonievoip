@@ -17,7 +17,7 @@ class Settings:
         self.access_token_expire_minutes = int(
             get_env("ACCESS_TOKEN_EXPIRE_MINUTES", "480")
         )
-        self.sync_interval_seconds = int(get_env("SYNC_INTERVAL_SECONDS", "45"))
+        self.sync_interval_seconds = int(get_env("SYNC_INTERVAL_SECONDS", "4"))
         self.ovh_endpoint = get_env("OVH_ENDPOINT", "ovh-eu")
 
 

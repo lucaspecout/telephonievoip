@@ -8,7 +8,7 @@ services:
       DATABASE_URL: postgresql+psycopg2://telephonie:telephonie@db:5432/telephonie
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: changeme-in-prod
-      SYNC_INTERVAL_SECONDS: 45
+      SYNC_INTERVAL_SECONDS: 4
     depends_on:
       - db
       - redis
