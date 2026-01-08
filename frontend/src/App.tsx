@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   changePassword,
+  createUser,
+  debugSync,
+  exportCallsCsv,
   fetchCalls,
   fetchDashboardSummary,
   fetchDashboardTimeseries,
@@ -11,9 +14,7 @@ import {
   saveOvhSettings,
   testOvhSettings,
   triggerSync,
-  createUser,
-  updateUser,
-  exportCallsCsv
+  updateUser
 } from './api'
 
 export type User = {
@@ -28,6 +29,7 @@ const pages = {
   calls: 'Appels',
   users: 'Utilisateurs',
   settings: 'Paramètres OVH',
+  debug: 'Debug synchro',
   changePassword: 'Changer mot de passe'
 }
 
@@ -86,6 +88,7 @@ const App = () => {
           <button onClick={() => setPage('calls')}>Appels</button>
           {isAdmin && <button onClick={() => setPage('users')}>Utilisateurs</button>}
           {isAdmin && <button onClick={() => setPage('settings')}>Paramètres OVH</button>}
+          {isAdmin && <button onClick={() => setPage('debug')}>Debug synchro</button>}
         </nav>
         <div className="sidebar-footer">
           <span>{user?.username}</span>
@@ -104,6 +107,7 @@ const App = () => {
         {page === 'calls' && <Calls token={token} isAdmin={isAdmin} />}
         {page === 'users' && isAdmin && <Users token={token} />}
         {page === 'settings' && isAdmin && <OvhSettings token={token} />}
+        {page === 'debug' && isAdmin && <SyncDebug token={token} />}
         {page === 'changePassword' && (
           <ChangePassword token={token} onDone={() => fetchMe(token).then(setUser)} />
         )}
@@ -646,6 +650,91 @@ const OvhSettings = ({ token }: { token: string }) => {
           <div className="log-block">
             <p>Logs de test:</p>
             <pre>{testLogs.join('\n')}</pre>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const SyncDebug = ({ token }: { token: string }) => {
+  const [days, setDays] = useState(7)
+  const [logs, setLogs] = useState<string[]>([])
+  const [summary, setSummary] = useState<any>(null)
+  const [status, setStatus] = useState<'idle' | 'running' | 'error'>('idle')
+  const [message, setMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const runDiagnostic = async (mode: 'dry_run' | 'force_sync') => {
+    setStatus('running')
+    setMessage('')
+    setErrorMessage('')
+    setLogs([])
+    setSummary(null)
+    try {
+      const result = await debugSync(token, { days, mode })
+      setSummary(result?.summary || null)
+      setLogs(result?.logs || [])
+      setMessage(
+        mode === 'force_sync'
+          ? 'Synchronisation poussée terminée.'
+          : 'Diagnostic terminé.'
+      )
+      setStatus('idle')
+    } catch (error) {
+      const err = error as Error & { logs?: string[] }
+      setErrorMessage(err.message || 'Erreur lors du diagnostic')
+      setLogs(err.logs || [])
+      setStatus('error')
+    }
+  }
+
+  return (
+    <div>
+      <h2>Debug synchronisation</h2>
+      <div className="card">
+        <p>
+          Ce diagnostic vérifie la fenêtre de synchronisation, l'accès OVH et
+          les consommations détectées pour comprendre ce qui bloque.
+        </p>
+        <label>
+          Fenêtre d'analyse (jours)
+          <input
+            type="number"
+            min={1}
+            max={90}
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+          />
+        </label>
+        <div className="row">
+          <button onClick={() => runDiagnostic('dry_run')} disabled={status === 'running'}>
+            Lancer diagnostic
+          </button>
+          <button onClick={() => runDiagnostic('force_sync')} disabled={status === 'running'}>
+            Synchronisation poussée
+          </button>
+        </div>
+        {summary && (
+          <div className="debug-summary">
+            <p>Résumé:</p>
+            <ul>
+              <li>Période: {summary.range_start} → {summary.range_end}</li>
+              <li>Consommations: {summary.consumption_count ?? '—'}</li>
+              <li>Déjà en base: {summary.existing_count ?? '—'}</li>
+              <li>Nouveaux potentiels: {summary.new_count ?? '—'}</li>
+              {summary.sync_new_count !== undefined && (
+                <li>Nouveaux synchronisés: {summary.sync_new_count}</li>
+              )}
+            </ul>
+          </div>
+        )}
+        {message && <p className="success">{message}</p>}
+        {errorMessage && <p className="error">{errorMessage}</p>}
+        {logs.length > 0 && (
+          <div className="log-block">
+            <p>Logs de diagnostic:</p>
+            <pre>{logs.join('\n')}</pre>
           </div>
         )}
       </div>
