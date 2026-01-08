@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -47,18 +47,27 @@ def map_payload_to_record(payload: dict) -> CallRecord:
 def get_settings(db: Session) -> Optional[OvhSettings]:
     return db.query(OvhSettings).first()
 
+def get_sync_range(
+    settings_row: OvhSettings, range_days: Optional[int] = None
+) -> Tuple[datetime, datetime, str]:
+    range_end = datetime.utcnow()
+    if range_days is not None:
+        range_start = range_end - timedelta(days=range_days)
+        return range_start, range_end, "override"
+    if settings_row.last_sync_at:
+        range_start = settings_row.last_sync_at - timedelta(minutes=10)
+        return range_start, range_end, "delta"
+    range_start = range_end - timedelta(days=7)
+    return range_start, range_end, "default"
 
-async def sync_consumptions(db: Session, publish) -> None:
+
+async def sync_consumptions(db: Session, publish, range_days: Optional[int] = None) -> int:
     settings_row = get_settings(db)
     if not settings_row or not settings_row.billing_account:
-        return
+        return 0
     client = OVHClient(settings_row, settings.ovh_endpoint)
     try:
-        range_end = datetime.utcnow()
-        if settings_row.last_sync_at:
-            range_start = settings_row.last_sync_at - timedelta(minutes=10)
-        else:
-            range_start = range_end - timedelta(days=7)
+        range_start, range_end, _ = get_sync_range(settings_row, range_days=range_days)
         consumptions = client.list_consumptions(range_start, range_end)
         new_count = 0
         for service_name, consumption_id in consumptions:
@@ -82,10 +91,12 @@ async def sync_consumptions(db: Session, publish) -> None:
         await publish({"type": "sync_complete", "payload": {"new_count": new_count}})
         if new_count:
             await publish({"type": "summary_updated"})
+        return new_count
     except Exception as exc:
         settings_row.last_error = str(exc)
         db.commit()
         await publish({"type": "sync_error", "payload": {"message": str(exc)}})
+        return 0
 
 
 class SyncWorker:

@@ -156,3 +156,30 @@ export const triggerSync = async (token: string) => {
   if (!response.ok) throw new Error('Sync failed')
   return response.json()
 }
+
+export const debugSync = async (
+  token: string,
+  params: { days?: number; mode?: 'dry_run' | 'force_sync' }
+) => {
+  const search = new URLSearchParams()
+  if (params.days) {
+    search.set('days', String(params.days))
+  }
+  if (params.mode) {
+    search.set('mode', params.mode)
+  }
+  const response = await fetch(`${API_BASE}/sync/debug?${search.toString()}`, {
+    method: 'POST',
+    headers: headers(token)
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const detail = payload?.detail
+    const message = detail?.message || detail || 'Debug failed'
+    const logs = detail?.logs || payload?.logs || []
+    const error = new Error(message)
+    ;(error as Error & { logs?: string[] }).logs = logs
+    throw error
+  }
+  return payload
+}

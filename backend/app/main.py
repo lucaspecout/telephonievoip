@@ -31,7 +31,7 @@ from app.schemas import (
     UserOut,
     UserUpdate,
 )
-from app.sync import SyncWorker
+from app.sync import SyncWorker, get_settings, get_sync_range, sync_consumptions
 
 app = FastAPI(title="Secours Calls Dashboard")
 
@@ -376,7 +376,6 @@ def update_ovh_settings(data: OvhSettingsIn, db: Session = Depends(get_db)) -> O
     dependencies=[Depends(require_role(Role.ADMIN))],
 )
 def test_ovh_settings(db: Session = Depends(get_db)) -> dict:
-    from app.sync import get_settings
     from app.ovh_client import OVHClient
 
     logs: list[str] = []
@@ -426,6 +425,134 @@ def test_ovh_settings(db: Session = Depends(get_db)) -> dict:
         settings_row.last_error = None
         db.commit()
         return {"status": "ok", "logs": logs}
+    except Exception as exc:
+        message = f"{type(exc).__name__}: {exc}"
+        log(f"Erreur: {message}")
+        settings_row.last_error = message
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail={"message": message, "logs": logs},
+        ) from exc
+
+
+@app.post("/sync/debug", dependencies=[Depends(require_role(Role.ADMIN))])
+async def debug_sync(
+    days: Optional[int] = Query(None, ge=1, le=90),
+    mode: str = Query("dry_run"),
+    db: Session = Depends(get_db),
+) -> dict:
+    from app.ovh_client import OVHClient
+
+    logs: list[str] = []
+
+    def log(message: str) -> None:
+        logs.append(message)
+
+    log("Démarrage du diagnostic de synchronisation.")
+    if mode not in {"dry_run", "force_sync"}:
+        log(f"Mode invalide reçu: {mode}")
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Invalid mode", "logs": logs},
+        )
+    settings_row = get_settings(db)
+    if not settings_row:
+        log("Aucun paramétrage OVH trouvé en base.")
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Settings not configured", "logs": logs},
+        )
+    missing_fields = [
+        field
+        for field in ("billing_account", "app_key", "app_secret", "consumer_key")
+        if not getattr(settings_row, field)
+    ]
+    if missing_fields:
+        log(f"Champs manquants: {', '.join(missing_fields)}")
+        settings_row.last_error = f"Missing OVH settings: {', '.join(missing_fields)}"
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": f"Missing OVH settings: {', '.join(missing_fields)}",
+                "logs": logs,
+            },
+        )
+    range_start, range_end, reason = get_sync_range(settings_row, range_days=days)
+    log(
+        "Fenêtre de synchronisation "
+        f"({reason}): {range_start.isoformat()} → {range_end.isoformat()}"
+    )
+    if settings_row.last_sync_at:
+        log(f"Dernière synchro en base: {settings_row.last_sync_at.isoformat()}")
+    else:
+        log("Aucune date de synchro en base.")
+    if days is not None:
+        log(f"Override de période: {days} jours")
+    log(f"Endpoint OVH: {settings.ovh_endpoint}")
+    log(f"Billing account: {settings_row.billing_account}")
+    log(f"Services configurés: {settings_row.service_names or '(aucun)'}")
+
+    try:
+        client = OVHClient(settings_row, settings.ovh_endpoint)
+        log("Client OVH initialisé.")
+        log("Test des identifiants /me.")
+        client.get_me()
+        log("Réponse /me OK.")
+        if not settings_row.service_names:
+            services = client.list_services()
+            log(f"Services détectés: {len(services)}")
+        consumptions = client.list_consumptions(range_start, range_end)
+        log(f"Consommations trouvées: {len(consumptions)}")
+
+        summary = {
+            "consumption_count": len(consumptions),
+            "range_start": range_start.isoformat(),
+            "range_end": range_end.isoformat(),
+        }
+        if consumptions:
+            ids = [consumption_id for _, consumption_id in consumptions]
+            existing_ids = {
+                row[0]
+                for row in db.query(CallRecord.ovh_consumption_id)
+                .filter(CallRecord.ovh_consumption_id.in_(ids))
+                .all()
+            }
+            new_ids = [cid for cid in ids if cid not in existing_ids]
+            log(f"Déjà en base: {len(existing_ids)}")
+            log(f"Nouveaux potentiels: {len(new_ids)}")
+            summary["existing_count"] = len(existing_ids)
+            summary["new_count"] = len(new_ids)
+            service_map = {}
+            for service_name, consumption_id in consumptions:
+                service_map.setdefault(consumption_id, service_name)
+            for sample_id in new_ids[:3]:
+                service_name = service_map.get(sample_id)
+                log(f"Exemple nouveau ID: {sample_id} (service {service_name})")
+                try:
+                    detail = client.get_consumption_detail(service_name, sample_id)
+                    log(
+                        "Détail: "
+                        f"statut={detail.get('status') or detail.get('nature')}, "
+                        f"durée={detail.get('duration')}, "
+                        f"date={detail.get('creationDatetime') or detail.get('startDate')}"
+                    )
+                except Exception as exc:
+                    log(f"Erreur lecture détail {sample_id}: {type(exc).__name__}: {exc}")
+        else:
+            log("Aucune consommation trouvée sur la période.")
+
+        if mode == "force_sync":
+            log("Lancement d'une synchronisation forcée.")
+
+            async def debug_publish(payload: dict) -> None:
+                log(f"Événement: {payload.get('type')}")
+
+            new_count = await sync_consumptions(db, debug_publish, range_days=days)
+            summary["sync_new_count"] = new_count
+            log(f"Synchronisation forcée terminée. Nouveaux: {new_count}")
+        return {"status": "ok", "logs": logs, "summary": summary}
     except Exception as exc:
         message = f"{type(exc).__name__}: {exc}"
         log(f"Erreur: {message}")
