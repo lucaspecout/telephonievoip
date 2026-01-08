@@ -479,40 +479,40 @@ async def debug_sync(
                 "logs": logs,
             },
         )
-    range_start, range_end, reason = get_sync_range(settings_row, range_days=days)
-    db_count = (
-        db.query(func.count(CallRecord.id))
-        .filter(CallRecord.started_at >= range_start, CallRecord.started_at <= range_end)
-        .scalar()
-        or 0
-    )
-    db_missed_count = (
-        db.query(func.count(CallRecord.id))
-        .filter(
-            CallRecord.started_at >= range_start,
-            CallRecord.started_at <= range_end,
-            CallRecord.is_missed.is_(True),
-        )
-        .scalar()
-        or 0
-    )
-    log(
-        "Fenêtre de synchronisation "
-        f"({reason}): {range_start.isoformat()} → {range_end.isoformat()}"
-    )
-    log(f"Appels en base sur la fenêtre: {db_count}")
-    log(f"Manqués en base sur la fenêtre: {db_missed_count}")
-    if settings_row.last_sync_at:
-        log(f"Dernière synchro en base: {settings_row.last_sync_at.isoformat()}")
-    else:
-        log("Aucune date de synchro en base.")
-    if days is not None:
-        log(f"Override de période: {days} jours")
-    log(f"Endpoint OVH: {settings.ovh_endpoint}")
-    log(f"Billing account: {settings_row.billing_account}")
-    log(f"Services configurés: {settings_row.service_names or '(aucun)'}")
-
     try:
+        range_start, range_end, reason = get_sync_range(settings_row, range_days=days)
+        db_count = (
+            db.query(func.count(CallRecord.id))
+            .filter(CallRecord.started_at >= range_start, CallRecord.started_at <= range_end)
+            .scalar()
+            or 0
+        )
+        db_missed_count = (
+            db.query(func.count(CallRecord.id))
+            .filter(
+                CallRecord.started_at >= range_start,
+                CallRecord.started_at <= range_end,
+                CallRecord.is_missed.is_(True),
+            )
+            .scalar()
+            or 0
+        )
+        log(
+            "Fenêtre de synchronisation "
+            f"({reason}): {range_start.isoformat()} → {range_end.isoformat()}"
+        )
+        log(f"Appels en base sur la fenêtre: {db_count}")
+        log(f"Manqués en base sur la fenêtre: {db_missed_count}")
+        if settings_row.last_sync_at:
+            log(f"Dernière synchro en base: {settings_row.last_sync_at.isoformat()}")
+        else:
+            log("Aucune date de synchro en base.")
+        if days is not None:
+            log(f"Override de période: {days} jours")
+        log(f"Endpoint OVH: {settings.ovh_endpoint}")
+        log(f"Billing account: {settings_row.billing_account}")
+        log(f"Services configurés: {settings_row.service_names or '(aucun)'}")
+
         client = OVHClient(settings_row, settings.ovh_endpoint)
         log("Client OVH initialisé.")
         log("Test des identifiants /me.")
