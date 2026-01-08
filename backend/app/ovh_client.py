@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 import ovh
 
@@ -16,18 +16,25 @@ class OVHClient:
             consumer_key=settings.consumer_key,
         )
 
-    def list_consumption_ids(self) -> List[str]:
-        return self._client.get(
-            f"/telephony/{self.settings.billing_account}/voiceConsumption",
-            serviceName=self._service_names(),
-        )
+    def list_services(self) -> List[str]:
+        return self._client.get(f"/telephony/{self.settings.billing_account}/service")
+
+    def list_consumptions(self) -> List[Tuple[str, str]]:
+        service_names = self._service_names() or self.list_services()
+        consumptions: List[Tuple[str, str]] = []
+        for service_name in service_names:
+            for consumption_id in self._client.get(
+                f"/telephony/{self.settings.billing_account}/service/{service_name}/voiceConsumption"
+            ):
+                consumptions.append((service_name, str(consumption_id)))
+        return consumptions
 
     def get_me(self) -> Dict[str, Any]:
         return self._client.get("/me")
 
-    def get_consumption_detail(self, consumption_id: str) -> Dict[str, Any]:
+    def get_consumption_detail(self, service_name: str, consumption_id: str) -> Dict[str, Any]:
         return self._client.get(
-            f"/telephony/{self.settings.billing_account}/voiceConsumption/{consumption_id}"
+            f"/telephony/{self.settings.billing_account}/service/{service_name}/voiceConsumption/{consumption_id}"
         )
 
     def _service_names(self) -> List[str]:

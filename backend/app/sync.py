@@ -54,9 +54,9 @@ async def sync_consumptions(db: Session, publish) -> None:
         return
     client = OVHClient(settings_row, settings.ovh_endpoint)
     try:
-        consumption_ids = client.list_consumption_ids()
+        consumptions = client.list_consumptions()
         new_count = 0
-        for consumption_id in consumption_ids:
+        for service_name, consumption_id in consumptions:
             existing = (
                 db.query(CallRecord)
                 .filter(CallRecord.ovh_consumption_id == str(consumption_id))
@@ -64,7 +64,7 @@ async def sync_consumptions(db: Session, publish) -> None:
             )
             if existing:
                 continue
-            payload = client.get_consumption_detail(consumption_id)
+            payload = client.get_consumption_detail(service_name, consumption_id)
             record = map_payload_to_record(payload)
             db.add(record)
             db.commit()
