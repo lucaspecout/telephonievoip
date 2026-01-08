@@ -88,3 +88,8 @@ class TimeseriesPoint(BaseModel):
     date: str
     total: int
     missed: int
+
+
+class HourlyPoint(BaseModel):
+    hour: int
+    total: int

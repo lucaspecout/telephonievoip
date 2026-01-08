@@ -21,6 +21,7 @@ from app.schemas import (
     CallRecordOut,
     ChangePasswordRequest,
     DashboardSummary,
+    HourlyPoint,
     LoginRequest,
     MeResponse,
     OvhSettingsIn,
@@ -297,6 +298,22 @@ def dashboard_timeseries(
             )
         )
     return points
+
+
+@app.get("/dashboard/hourly", response_model=List[HourlyPoint])
+def dashboard_hourly(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> List[HourlyPoint]:
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start = today_start + timedelta(days=1)
+    results = (
+        db.query(func.extract("hour", CallRecord.started_at), func.count(CallRecord.id))
+        .filter(CallRecord.started_at >= today_start, CallRecord.started_at < tomorrow_start)
+        .group_by(func.extract("hour", CallRecord.started_at))
+        .all()
+    )
+    totals = {int(row[0]): row[1] for row in results}
+    return [HourlyPoint(hour=hour, total=totals.get(hour, 0)) for hour in range(24)]
 
 
 @app.get("/users", response_model=List[UserOut], dependencies=[Depends(require_role(Role.ADMIN))])

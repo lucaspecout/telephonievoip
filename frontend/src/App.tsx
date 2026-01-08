@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   changePassword,
   createUser,
@@ -6,6 +6,7 @@ import {
   exportCallsCsv,
   fetchCalls,
   fetchDashboardSummary,
+  fetchDashboardHourly,
   fetchDashboardTimeseries,
   fetchMe,
   fetchOvhSettings,
@@ -38,7 +39,7 @@ const wsUrl = () => {
   return `${protocol}://${window.location.host}/ws`
 }
 
-const AUTO_REFRESH_INTERVAL_MS = 3000
+const AUTO_REFRESH_INTERVAL_MS = 2000
 
 const App = () => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
@@ -206,6 +207,7 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   const [timeseries, setTimeseries] = useState<
     { date: string; total: number; missed: number }[]
   >([])
+  const [hourly, setHourly] = useState<{ hour: number; total: number }[]>([])
   const [latestCalls, setLatestCalls] = useState<any[]>([])
   const [ovhStatus, setOvhStatus] = useState<{
     last_sync_at?: string | null
@@ -213,14 +215,16 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   } | null>(null)
 
   const reload = async () => {
-    const [summaryData, timeseriesData, callsData, ovhData] = await Promise.all([
+    const [summaryData, timeseriesData, hourlyData, callsData, ovhData] = await Promise.all([
       fetchDashboardSummary(token),
       fetchDashboardTimeseries(token),
+      fetchDashboardHourly(token),
       fetchCalls(token, { page: 1, page_size: 5 }),
       isAdmin ? fetchOvhSettings(token) : Promise.resolve(null)
     ])
     setSummary(summaryData)
     setTimeseries(timeseriesData)
+    setHourly(hourlyData)
     setLatestCalls(callsData)
     setOvhStatus(ovhData)
   }
@@ -239,6 +243,8 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   }, [])
 
   if (!summary) return <div>Chargement...</div>
+
+  const maxHourly = Math.max(1, ...hourly.map((point) => point.total))
 
   return (
     <div>
@@ -286,6 +292,25 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
               <small>Manqués : {point.missed}</small>
             </div>
           ))}
+        </div>
+      </section>
+      <section className="card">
+        <h3>Appels de la journée par heure</h3>
+        <div className="hourly-chart">
+          {hourly.map((point) => {
+            const height = Math.round((point.total / maxHourly) * 100)
+            return (
+              <div key={point.hour} className="hourly-bar">
+                <strong className="hourly-bar-value">{point.total}</strong>
+                <div className="hourly-bar-track">
+                  <div className="hourly-bar-fill" style={{ height: `${height}%` }} />
+                </div>
+                <span className="hourly-bar-label">
+                  {String(point.hour).padStart(2, '0')}h
+                </span>
+              </div>
+            )
+          })}
         </div>
       </section>
       <section className="card">
@@ -340,8 +365,16 @@ const Kpi = ({ label, value }: { label: string; value: number }) => (
   </div>
 )
 
-const formatDirection = (direction: string) =>
-  direction === 'OUTBOUND' ? '📤 Sortant' : '📥 Entrant'
+const formatDirection = (direction?: string) => {
+  const normalized = String(direction ?? '').toLowerCase()
+  if (normalized.includes('out')) {
+    return '📤 Sortant'
+  }
+  if (normalized.includes('in')) {
+    return '📥 Entrant'
+  }
+  return '—'
+}
 
 const toDialableNumber = (value?: string | null) => {
   if (!value) return ''
