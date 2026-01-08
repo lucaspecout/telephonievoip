@@ -38,6 +38,8 @@ const wsUrl = () => {
   return `${protocol}://${window.location.host}/ws`
 }
 
+const AUTO_REFRESH_INTERVAL_MS = 30000
+
 const App = () => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [user, setUser] = useState<User | null>(null)
@@ -227,7 +229,13 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
     reload()
     const ws = new WebSocket(wsUrl())
     ws.onmessage = () => reload()
-    return () => ws.close()
+    const intervalId = window.setInterval(() => {
+      reload()
+    }, AUTO_REFRESH_INTERVAL_MS)
+    return () => {
+      ws.close()
+      window.clearInterval(intervalId)
+    }
   }, [])
 
   if (!summary) return <div>Chargement...</div>
@@ -408,7 +416,13 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   useEffect(() => {
     const ws = new WebSocket(wsUrl())
     ws.onmessage = () => load()
-    return () => ws.close()
+    const intervalId = window.setInterval(() => {
+      load()
+    }, AUTO_REFRESH_INTERVAL_MS)
+    return () => {
+      ws.close()
+      window.clearInterval(intervalId)
+    }
   }, [load])
 
   return (
