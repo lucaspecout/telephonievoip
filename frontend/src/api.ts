@@ -1,0 +1,141 @@
+const API_BASE = ''
+
+const headers = (token?: string) => {
+  const result: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) {
+    result.Authorization = `Bearer ${token}`
+  }
+  return result
+}
+
+export const login = async (username: string, password: string) => {
+  const response = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ username, password })
+  })
+  if (!response.ok) throw new Error('Login failed')
+  return response.json()
+}
+
+export const fetchMe = async (token: string) => {
+  const response = await fetch(`${API_BASE}/me`, { headers: headers(token) })
+  if (!response.ok) throw new Error('Unauthorized')
+  return response.json()
+}
+
+export const changePassword = async (
+  token: string,
+  current_password: string,
+  new_password: string
+) => {
+  const response = await fetch(`${API_BASE}/auth/change-password`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({ current_password, new_password })
+  })
+  if (!response.ok) throw new Error('Change failed')
+  return response.json()
+}
+
+export const fetchCalls = async (token: string, filters: Record<string, any>) => {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== '' && value !== undefined) {
+      params.set(key, String(value))
+    }
+  })
+  const response = await fetch(`${API_BASE}/calls?${params.toString()}`, {
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('Calls failed')
+  return response.json()
+}
+
+export const exportCallsCsv = async (token: string, filters: Record<string, any>) => {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== '' && value !== undefined) {
+      params.set(key, String(value))
+    }
+  })
+  params.set('export', 'csv')
+  const response = await fetch(`${API_BASE}/calls?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  if (!response.ok) throw new Error('Export failed')
+  const blob = await response.blob()
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'calls.csv'
+  link.click()
+  window.URL.revokeObjectURL(url)
+}
+
+export const fetchDashboardSummary = async (token: string) => {
+  const response = await fetch(`${API_BASE}/dashboard/summary`, {
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('Summary failed')
+  return response.json()
+}
+
+export const fetchDashboardTimeseries = async (token: string) => {
+  const response = await fetch(`${API_BASE}/dashboard/timeseries`, {
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('Timeseries failed')
+  return response.json()
+}
+
+export const fetchUsers = async (token: string) => {
+  const response = await fetch(`${API_BASE}/users`, { headers: headers(token) })
+  if (!response.ok) throw new Error('Users failed')
+  return response.json()
+}
+
+export const createUser = async (token: string, payload: any) => {
+  const response = await fetch(`${API_BASE}/users`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('User create failed')
+  return response.json()
+}
+
+export const updateUser = async (token: string, userId: number, payload: any) => {
+  const response = await fetch(`${API_BASE}/users/${userId}`, {
+    method: 'PATCH',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('User update failed')
+  return response.json()
+}
+
+export const fetchOvhSettings = async (token: string) => {
+  const response = await fetch(`${API_BASE}/settings/ovh`, { headers: headers(token) })
+  if (!response.ok) throw new Error('Settings failed')
+  return response.json()
+}
+
+export const saveOvhSettings = async (token: string, payload: any) => {
+  const response = await fetch(`${API_BASE}/settings/ovh`, {
+    method: 'PUT',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Settings update failed')
+  return response.json()
+}
+
+export const testOvhSettings = async (token: string) => {
+  const response = await fetch(`${API_BASE}/settings/ovh/test`, {
+    method: 'POST',
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('Test failed')
+  return response.json()
+}
