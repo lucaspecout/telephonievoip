@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   changePassword,
   fetchCalls,
@@ -282,14 +282,20 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   })
   const [page, setPage] = useState(1)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const data = await fetchCalls(token, { page, page_size: 20, ...filters })
     setCalls(data)
-  }
+  }, [token, page, filters])
 
   useEffect(() => {
     load()
-  }, [page])
+  }, [load])
+
+  useEffect(() => {
+    const ws = new WebSocket(wsUrl())
+    ws.onmessage = () => load()
+    return () => ws.close()
+  }, [load])
 
   return (
     <div>
