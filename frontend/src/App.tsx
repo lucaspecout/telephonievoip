@@ -203,6 +203,12 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
     today_missed: number
     week_total: number
     week_missed: number
+    today_inbound: number
+    today_outbound: number
+    week_inbound: number
+    week_outbound: number
+    today_avg_duration: number
+    week_avg_duration: number
   } | null>(null)
   const [timeseries, setTimeseries] = useState<
     { date: string; total: number; missed: number }[]
@@ -252,8 +258,14 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
       <div className="kpi-grid">
         <Kpi label="📞 Appels aujourd'hui" value={summary.today_total} />
         <Kpi label="🚨 Manqués aujourd'hui" value={summary.today_missed} />
+        <Kpi label="📥 Entrants aujourd'hui" value={summary.today_inbound} />
+        <Kpi label="📤 Sortants aujourd'hui" value={summary.today_outbound} />
         <Kpi label="📆 Appels 7 jours" value={summary.week_total} />
         <Kpi label="😓 Manqués 7 jours" value={summary.week_missed} />
+        <Kpi label="📥 Entrants 7 jours" value={summary.week_inbound} />
+        <Kpi label="📤 Sortants 7 jours" value={summary.week_outbound} />
+        <Kpi label="⏱️ Durée moyenne (jour)" value={formatDuration(summary.today_avg_duration)} />
+        <Kpi label="⏱️ Durée moyenne (7j)" value={formatDuration(summary.week_avg_duration)} />
       </div>
       {isAdmin && (
         <section className="card">
@@ -358,7 +370,7 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   )
 }
 
-const Kpi = ({ label, value }: { label: string; value: number }) => (
+const Kpi = ({ label, value }: { label: string; value: number | string }) => (
   <div className="kpi">
     <span>{label}</span>
     <strong>{value}</strong>
@@ -407,6 +419,14 @@ const formatFrenchNumber = (value?: string | null) => {
     return digits.replace(/(\d{2})(?=\d)/g, '$1 ').trim()
   }
   return value
+}
+
+const formatDuration = (seconds: number) => {
+  if (!seconds || Number.isNaN(seconds)) return '0s'
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remaining = seconds % 60
+  return `${minutes}m ${String(remaining).padStart(2, '0')}s`
 }
 
 const getCallbackNumber = (call: any) =>

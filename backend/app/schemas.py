@@ -82,6 +82,12 @@ class DashboardSummary(BaseModel):
     today_missed: int
     week_total: int
     week_missed: int
+    today_inbound: int
+    today_outbound: int
+    week_inbound: int
+    week_outbound: int
+    today_avg_duration: int
+    week_avg_duration: int
 
 
 class TimeseriesPoint(BaseModel):

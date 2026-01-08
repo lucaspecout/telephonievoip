@@ -18,16 +18,58 @@ def extract_status(payload: dict) -> Optional[str]:
     return None
 
 
-def infer_direction(payload: dict) -> CallDirection:
-    for key in ("direction", "way", "callType", "call_type", "callDirection", "nature", "type"):
-        value = payload.get(key)
-        if value is None:
-            continue
-        normalized = str(value).lower()
-        if "out" in normalized:
+DIRECTION_KEYS = (
+    "direction",
+    "way",
+    "callType",
+    "call_type",
+    "callDirection",
+    "nature",
+    "type",
+    "trafficType",
+    "callWay",
+    "callWayType",
+)
+
+
+def normalize_direction(value: object) -> Optional[CallDirection]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        outbound_values = {"out", "outbound", "outgoing", "emit", "sortant"}
+        inbound_values = {"in", "inbound", "incoming", "entrant", "receive", "received"}
+        if normalized in outbound_values or any(token in normalized for token in outbound_values):
             return CallDirection.OUTBOUND
-        if "in" in normalized:
+        if normalized in inbound_values or any(token in normalized for token in inbound_values):
             return CallDirection.INBOUND
+    return None
+
+
+def find_direction(payload: dict) -> Optional[CallDirection]:
+    for key in DIRECTION_KEYS:
+        if key in payload:
+            direction = normalize_direction(payload.get(key))
+            if direction:
+                return direction
+    for value in payload.values():
+        if isinstance(value, dict):
+            direction = find_direction(value)
+            if direction:
+                return direction
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    direction = find_direction(item)
+                    if direction:
+                        return direction
+    return None
+
+
+def infer_direction(payload: dict) -> CallDirection:
+    direction = find_direction(payload)
+    if direction:
+        return direction
     return CallDirection.INBOUND
 
 
@@ -98,6 +140,16 @@ async def sync_consumptions(db: Session, publish, range_days: Optional[int] = No
                 .first()
             )
             if existing:
+                updated_direction = infer_direction(existing.raw_payload or {})
+                if updated_direction != existing.direction:
+                    existing.direction = updated_direction
+                    db.commit()
+                    await publish(
+                        {
+                            "type": "call_updated",
+                            "payload": {"id": existing.id, "direction": updated_direction.value},
+                        }
+                    )
                 continue
             try:
                 payload = client.get_consumption_detail(service_name, consumption_id)

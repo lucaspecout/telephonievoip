@@ -238,31 +238,57 @@ def dashboard_summary(
 ) -> DashboardSummary:
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = datetime.utcnow() - timedelta(days=7)
+    today_base_query = db.query(CallRecord).filter(CallRecord.started_at >= today_start)
+    week_base_query = db.query(CallRecord).filter(CallRecord.started_at >= week_start)
     today_total = (
-        db.query(func.count(CallRecord.id))
-        .filter(CallRecord.started_at >= today_start)
-        .scalar()
+        today_base_query.with_entities(func.count(CallRecord.id)).scalar()
     )
     today_missed = (
-        db.query(func.count(CallRecord.id))
-        .filter(CallRecord.started_at >= today_start, CallRecord.is_missed.is_(True))
+        today_base_query.with_entities(func.count(CallRecord.id))
+        .filter(CallRecord.is_missed.is_(True))
         .scalar()
     )
     week_total = (
-        db.query(func.count(CallRecord.id))
-        .filter(CallRecord.started_at >= week_start)
-        .scalar()
+        week_base_query.with_entities(func.count(CallRecord.id)).scalar()
     )
     week_missed = (
-        db.query(func.count(CallRecord.id))
-        .filter(CallRecord.started_at >= week_start, CallRecord.is_missed.is_(True))
+        week_base_query.with_entities(func.count(CallRecord.id))
+        .filter(CallRecord.is_missed.is_(True))
         .scalar()
     )
+    today_inbound = (
+        today_base_query.with_entities(func.count(CallRecord.id))
+        .filter(CallRecord.direction == CallDirection.INBOUND)
+        .scalar()
+    )
+    today_outbound = (
+        today_base_query.with_entities(func.count(CallRecord.id))
+        .filter(CallRecord.direction == CallDirection.OUTBOUND)
+        .scalar()
+    )
+    week_inbound = (
+        week_base_query.with_entities(func.count(CallRecord.id))
+        .filter(CallRecord.direction == CallDirection.INBOUND)
+        .scalar()
+    )
+    week_outbound = (
+        week_base_query.with_entities(func.count(CallRecord.id))
+        .filter(CallRecord.direction == CallDirection.OUTBOUND)
+        .scalar()
+    )
+    today_avg_duration = today_base_query.with_entities(func.avg(CallRecord.duration)).scalar()
+    week_avg_duration = week_base_query.with_entities(func.avg(CallRecord.duration)).scalar()
     return DashboardSummary(
         today_total=today_total or 0,
         today_missed=today_missed or 0,
         week_total=week_total or 0,
         week_missed=week_missed or 0,
+        today_inbound=today_inbound or 0,
+        today_outbound=today_outbound or 0,
+        week_inbound=week_inbound or 0,
+        week_outbound=week_outbound or 0,
+        today_avg_duration=int(round(today_avg_duration or 0)),
+        week_avg_duration=int(round(week_avg_duration or 0)),
     )
 
 
