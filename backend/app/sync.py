@@ -39,9 +39,12 @@ def parse_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def map_payload_to_record(payload: dict) -> CallRecord:
+def map_payload_to_record(payload: dict, consumption_id: Optional[str] = None) -> CallRecord:
+    ovh_id = payload.get("id") or payload.get("consumptionId") or consumption_id
+    if not ovh_id:
+        raise ValueError("Missing OVH consumption id")
     return CallRecord(
-        ovh_consumption_id=str(payload.get("id")),
+        ovh_consumption_id=str(ovh_id),
         started_at=parse_datetime(payload.get("creationDatetime") or payload.get("startDate")),
         direction=infer_direction(payload),
         calling_number=payload.get("calling"),
@@ -55,6 +58,7 @@ def map_payload_to_record(payload: dict) -> CallRecord:
 
 def get_settings(db: Session) -> Optional[OvhSettings]:
     return db.query(OvhSettings).first()
+
 
 def get_sync_range(
     settings_row: OvhSettings, range_days: Optional[int] = None
@@ -91,7 +95,7 @@ async def sync_consumptions(db: Session, publish, range_days: Optional[int] = No
                 continue
             try:
                 payload = client.get_consumption_detail(service_name, consumption_id)
-                record = map_payload_to_record(payload)
+                record = map_payload_to_record(payload, consumption_id=str(consumption_id))
                 db.add(record)
                 db.commit()
                 db.refresh(record)
