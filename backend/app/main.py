@@ -1,6 +1,7 @@
 import asyncio
 import csv
 import io
+import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -9,6 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocket
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.auth import auth_service, get_current_user, require_role
@@ -33,6 +35,8 @@ from app.sync import SyncWorker
 
 app = FastAPI(title="Secours Calls Dashboard")
 
+logger = logging.getLogger(__name__)
+
 redis_client: Optional[redis.Redis] = None
 queue: asyncio.Queue = asyncio.Queue()
 worker: Optional[SyncWorker] = None
@@ -42,6 +46,7 @@ worker_task: Optional[asyncio.Task] = None
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    await wait_for_database()
     Base.metadata.create_all(bind=engine)
     bootstrap_admin()
     global redis_client, worker, scheduler_task, worker_task
@@ -62,6 +67,32 @@ async def on_shutdown() -> None:
         worker_task.cancel()
     if redis_client:
         await redis_client.close()
+
+
+async def wait_for_database(max_attempts: int = 8, delay_seconds: float = 1.5) -> None:
+    attempt = 0
+    delay = delay_seconds
+    while attempt < max_attempts:
+        attempt += 1
+        try:
+            with engine.connect():
+                return
+        except OperationalError as exc:
+            if attempt >= max_attempts:
+                logger.error(
+                    "Database connection failed after %s attempts.",
+                    attempt,
+                    exc_info=exc,
+                )
+                raise
+            logger.warning(
+                "Database not ready (attempt %s/%s). Retrying in %.1fs.",
+                attempt,
+                max_attempts,
+                delay,
+            )
+            await asyncio.sleep(delay)
+            delay = min(delay * 1.5, 10.0)
 
 
 def bootstrap_admin() -> None:
