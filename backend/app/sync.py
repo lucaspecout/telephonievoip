@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
@@ -66,10 +67,12 @@ async def sync_consumptions(db: Session, publish, range_days: Optional[int] = No
     if not settings_row or not settings_row.billing_account:
         return 0
     client = OVHClient(settings_row, settings.ovh_endpoint)
+    logger = logging.getLogger(__name__)
     try:
         range_start, range_end, _ = get_sync_range(settings_row, range_days=range_days)
         consumptions = client.list_consumptions(range_start, range_end)
         new_count = 0
+        errors: list[str] = []
         for service_name, consumption_id in consumptions:
             existing = (
                 db.query(CallRecord)
@@ -78,17 +81,39 @@ async def sync_consumptions(db: Session, publish, range_days: Optional[int] = No
             )
             if existing:
                 continue
-            payload = client.get_consumption_detail(service_name, consumption_id)
-            record = map_payload_to_record(payload)
-            db.add(record)
-            db.commit()
-            db.refresh(record)
-            new_count += 1
-            await publish({"type": "new_call", "payload": {"id": record.id}})
+            try:
+                payload = client.get_consumption_detail(service_name, consumption_id)
+                record = map_payload_to_record(payload)
+                db.add(record)
+                db.commit()
+                db.refresh(record)
+                new_count += 1
+                await publish({"type": "new_call", "payload": {"id": record.id}})
+            except Exception as exc:
+                db.rollback()
+                message = f"{consumption_id}: {type(exc).__name__}: {exc}"
+                errors.append(message)
+                logger.exception("Failed to sync consumption %s", consumption_id)
+                await publish(
+                    {
+                        "type": "sync_item_error",
+                        "payload": {"id": str(consumption_id), "message": message},
+                    }
+                )
         settings_row.last_sync_at = datetime.utcnow()
-        settings_row.last_error = None
+        if errors:
+            settings_row.last_error = (
+                f"Sync completed with {len(errors)} error(s). Example: {errors[0]}"
+            )
+        else:
+            settings_row.last_error = None
         db.commit()
-        await publish({"type": "sync_complete", "payload": {"new_count": new_count}})
+        await publish(
+            {
+                "type": "sync_complete",
+                "payload": {"new_count": new_count, "error_count": len(errors)},
+            }
+        )
         if new_count:
             await publish({"type": "summary_updated"})
         return new_count
