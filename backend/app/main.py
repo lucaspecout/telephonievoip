@@ -379,27 +379,62 @@ def test_ovh_settings(db: Session = Depends(get_db)) -> dict:
     from app.sync import get_settings
     from app.ovh_client import OVHClient
 
+    logs: list[str] = []
+
+    def log(message: str) -> None:
+        logs.append(message)
+
+    log("Démarrage du test de connexion OVH.")
     settings_row = get_settings(db)
     if not settings_row:
-        raise HTTPException(status_code=400, detail="Settings not configured")
+        log("Aucun paramétrage OVH trouvé en base.")
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Settings not configured", "logs": logs},
+        )
     missing_fields = [
         field
         for field in ("billing_account", "app_key", "app_secret", "consumer_key")
         if not getattr(settings_row, field)
     ]
     if missing_fields:
+        log(f"Champs manquants: {', '.join(missing_fields)}")
+        settings_row.last_error = f"Missing OVH settings: {', '.join(missing_fields)}"
+        db.commit()
         raise HTTPException(
             status_code=400,
-            detail=f"Missing OVH settings: {', '.join(missing_fields)}",
+            detail={
+                "message": f"Missing OVH settings: {', '.join(missing_fields)}",
+                "logs": logs,
+            },
         )
     try:
+        log(f"Endpoint OVH: {settings.ovh_endpoint}")
+        log(f"Billing account: {settings_row.billing_account}")
+        log(
+            "Services: "
+            + (settings_row.service_names or "(aucun service spécifié)")
+        )
         client = OVHClient(settings_row, settings.ovh_endpoint)
+        log("Client OVH initialisé.")
+        log("Vérification des identifiants via /me.")
+        client.get_me()
+        log("Réponse /me reçue.")
+        log("Récupération des consommations téléphonie.")
         client.list_consumption_ids()
+        log("Liste des consommations récupérée.")
         settings_row.last_error = None
         db.commit()
-        return {"status": "ok"}
+        return {"status": "ok", "logs": logs}
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        message = f"{type(exc).__name__}: {exc}"
+        log(f"Erreur: {message}")
+        settings_row.last_error = message
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail={"message": message, "logs": logs},
+        ) from exc
 
 
 @app.websocket("/ws")

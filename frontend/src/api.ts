@@ -136,6 +136,14 @@ export const testOvhSettings = async (token: string) => {
     method: 'POST',
     headers: headers(token)
   })
-  if (!response.ok) throw new Error('Test failed')
-  return response.json()
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const detail = payload?.detail
+    const message = detail?.message || detail || 'Test failed'
+    const logs = detail?.logs || payload?.logs || []
+    const error = new Error(message)
+    ;(error as Error & { logs?: string[] }).logs = logs
+    throw error
+  }
+  return payload
 }
