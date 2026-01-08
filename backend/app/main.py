@@ -437,6 +437,12 @@ def test_ovh_settings(db: Session = Depends(get_db)) -> dict:
         ) from exc
 
 
+@app.post("/sync", dependencies=[Depends(require_role(Role.ADMIN))])
+async def trigger_sync() -> dict:
+    await queue.put("sync")
+    return {"status": "queued"}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
