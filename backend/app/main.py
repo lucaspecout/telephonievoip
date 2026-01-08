@@ -365,6 +365,7 @@ def update_ovh_settings(data: OvhSettingsIn, db: Session = Depends(get_db)) -> O
         db.add(settings_row)
     for field, value in data.model_dump().items():
         setattr(settings_row, field, value)
+    settings_row.last_error = None
     db.commit()
     db.refresh(settings_row)
     return OvhSettingsOut.model_validate(settings_row)
@@ -381,9 +382,21 @@ def test_ovh_settings(db: Session = Depends(get_db)) -> dict:
     settings_row = get_settings(db)
     if not settings_row:
         raise HTTPException(status_code=400, detail="Settings not configured")
+    missing_fields = [
+        field
+        for field in ("billing_account", "app_key", "app_secret", "consumer_key")
+        if not getattr(settings_row, field)
+    ]
+    if missing_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing OVH settings: {', '.join(missing_fields)}",
+        )
     try:
         client = OVHClient(settings_row, settings.ovh_endpoint)
         client.list_consumption_ids()
+        settings_row.last_error = None
+        db.commit()
         return {"status": "ok"}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
