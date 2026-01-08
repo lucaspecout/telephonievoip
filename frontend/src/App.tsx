@@ -121,25 +121,38 @@ const Login = ({
   onLogin: (username: string, password: string) => void
   error: string
 }) => {
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('admin')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   return (
     <div className="login">
       <h2>Connexion</h2>
-      <label>
-        Nom d'utilisateur
-        <input value={username} onChange={(e) => setUsername(e.target.value)} />
-      </label>
-      <label>
-        Mot de passe
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </label>
-      {error && <p className="error">{error}</p>}
-      <button onClick={() => onLogin(username, password)}>Se connecter</button>
+      <form
+        autoComplete="off"
+        onSubmit={(event) => {
+          event.preventDefault()
+          onLogin(username, password)
+        }}
+      >
+        <label>
+          Nom d'utilisateur
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="off"
+          />
+        </label>
+        <label>
+          Mot de passe
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </label>
+        {error && <p className="error">{error}</p>}
+        <button type="submit">Se connecter</button>
+      </form>
     </div>
   )
 }
