@@ -31,7 +31,7 @@ from app.schemas import (
     UserOut,
     UserUpdate,
 )
-from app.sync import SyncWorker, get_settings, get_sync_range, sync_consumptions
+from app.sync import SyncWorker, extract_status, get_settings, get_sync_range, sync_consumptions
 
 app = FastAPI(title="Secours Calls Dashboard")
 
@@ -554,7 +554,7 @@ async def debug_sync(
                     detail = client.get_consumption_detail(service_name, sample_id)
                     log(
                         "Détail: "
-                        f"statut={detail.get('status') or detail.get('nature')}, "
+                        f"statut={extract_status(detail)}, "
                         f"durée={detail.get('duration')}, "
                         f"date={detail.get('creationDatetime') or detail.get('startDate')}"
                     )

@@ -10,6 +10,14 @@ from app.models import CallRecord, CallDirection, OvhSettings
 from app.ovh_client import OVHClient
 
 
+def extract_status(payload: dict) -> Optional[str]:
+    for key in ("status", "nature", "callStatus", "callType", "type"):
+        value = payload.get(key)
+        if value:
+            return str(value)
+    return None
+
+
 def infer_direction(payload: dict) -> CallDirection:
     direction = payload.get("direction") or payload.get("way") or "IN"
     if str(direction).lower().startswith("out"):
@@ -18,7 +26,7 @@ def infer_direction(payload: dict) -> CallDirection:
 
 
 def infer_missed(payload: dict) -> bool:
-    status = (payload.get("status") or payload.get("nature") or "").lower()
+    status = (extract_status(payload) or "").lower()
     duration = payload.get("duration") or 0
     if "missed" in status or "unanswered" in status:
         return True
@@ -39,7 +47,7 @@ def map_payload_to_record(payload: dict) -> CallRecord:
         calling_number=payload.get("calling"),
         called_number=payload.get("called"),
         duration=int(payload.get("duration") or 0),
-        status=payload.get("status") or payload.get("nature"),
+        status=extract_status(payload),
         is_missed=infer_missed(payload),
         raw_payload=payload,
     )
