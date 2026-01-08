@@ -89,6 +89,14 @@ export const fetchDashboardTimeseries = async (token: string) => {
   return response.json()
 }
 
+export const fetchDashboardHourly = async (token: string) => {
+  const response = await fetch(`${API_BASE}/dashboard/hourly`, {
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('Hourly failed')
+  return response.json()
+}
+
 export const fetchUsers = async (token: string) => {
   const response = await fetch(`${API_BASE}/users`, { headers: headers(token) })
   if (!response.ok) throw new Error('Users failed')

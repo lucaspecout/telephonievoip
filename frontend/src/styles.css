@@ -200,6 +200,50 @@ button {
   border-radius: 8px;
 }
 
+.hourly-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 4px;
+  height: 220px;
+}
+
+.hourly-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+
+.hourly-bar-track {
+  flex: 1;
+  width: 100%;
+  background: #f3f4f6;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-end;
+  padding: 4px;
+}
+
+.hourly-bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+  border-radius: 8px;
+  min-height: 4px;
+}
+
+.hourly-bar-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.hourly-bar-value {
+  font-size: 12px;
+  color: #111827;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

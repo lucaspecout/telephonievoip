@@ -19,9 +19,15 @@ def extract_status(payload: dict) -> Optional[str]:
 
 
 def infer_direction(payload: dict) -> CallDirection:
-    direction = payload.get("direction") or payload.get("way") or "IN"
-    if str(direction).lower().startswith("out"):
-        return CallDirection.OUTBOUND
+    for key in ("direction", "way", "callType", "call_type", "callDirection", "nature", "type"):
+        value = payload.get(key)
+        if value is None:
+            continue
+        normalized = str(value).lower()
+        if "out" in normalized:
+            return CallDirection.OUTBOUND
+        if "in" in normalized:
+            return CallDirection.INBOUND
     return CallDirection.INBOUND
 
 
