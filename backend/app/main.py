@@ -480,10 +480,28 @@ async def debug_sync(
             },
         )
     range_start, range_end, reason = get_sync_range(settings_row, range_days=days)
+    db_count = (
+        db.query(func.count(CallRecord.id))
+        .filter(CallRecord.started_at >= range_start, CallRecord.started_at <= range_end)
+        .scalar()
+        or 0
+    )
+    db_missed_count = (
+        db.query(func.count(CallRecord.id))
+        .filter(
+            CallRecord.started_at >= range_start,
+            CallRecord.started_at <= range_end,
+            CallRecord.is_missed.is_(True),
+        )
+        .scalar()
+        or 0
+    )
     log(
         "Fenêtre de synchronisation "
         f"({reason}): {range_start.isoformat()} → {range_end.isoformat()}"
     )
+    log(f"Appels en base sur la fenêtre: {db_count}")
+    log(f"Manqués en base sur la fenêtre: {db_missed_count}")
     if settings_row.last_sync_at:
         log(f"Dernière synchro en base: {settings_row.last_sync_at.isoformat()}")
     else:
@@ -510,6 +528,8 @@ async def debug_sync(
             "consumption_count": len(consumptions),
             "range_start": range_start.isoformat(),
             "range_end": range_end.isoformat(),
+            "db_count": db_count,
+            "db_missed_count": db_missed_count,
         }
         if consumptions:
             ids = [consumption_id for _, consumption_id in consumptions]

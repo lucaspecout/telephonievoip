@@ -721,6 +721,8 @@ const SyncDebug = ({ token }: { token: string }) => {
             <ul>
               <li>Période: {summary.range_start} → {summary.range_end}</li>
               <li>Consommations: {summary.consumption_count ?? '—'}</li>
+              <li>Appels en base (fenêtre): {summary.db_count ?? '—'}</li>
+              <li>Manqués en base (fenêtre): {summary.db_missed_count ?? '—'}</li>
               <li>Déjà en base: {summary.existing_count ?? '—'}</li>
               <li>Nouveaux potentiels: {summary.new_count ?? '—'}</li>
               {summary.sync_new_count !== undefined && (
