@@ -12,7 +12,7 @@ from alembic.config import Config
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -121,6 +121,15 @@ def run_migrations() -> None:
     alembic_ini = Path(__file__).resolve().parents[1] / "alembic.ini"
     config = Config(str(alembic_ini))
     config.set_main_option("sqlalchemy.url", settings.database_url)
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        tables = inspector.get_table_names()
+    if tables and "alembic_version" not in tables:
+        logger.warning(
+            "Existing tables detected without alembic version; stamping head."
+        )
+        command.stamp(config, "head")
+        return
     command.upgrade(config, "head")
 
 
