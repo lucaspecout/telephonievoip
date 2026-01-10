@@ -198,6 +198,8 @@ const ChangePassword = ({ token, onDone }: { token: string; onDone: () => void }
 }
 
 const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [summary, setSummary] = useState<{
     today_total: number
     today_missed: number
@@ -221,18 +223,45 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   } | null>(null)
 
   const reload = async () => {
-    const [summaryData, timeseriesData, hourlyData, callsData, ovhData] = await Promise.all([
+    const results = await Promise.allSettled([
       fetchDashboardSummary(token),
       fetchDashboardTimeseries(token),
       fetchDashboardHourly(token),
       fetchCalls(token, { page: 1, page_size: 5 }),
       isAdmin ? fetchOvhSettings(token) : Promise.resolve(null)
     ])
-    setSummary(summaryData)
-    setTimeseries(timeseriesData)
-    setHourly(hourlyData)
-    setLatestCalls(callsData)
-    setOvhStatus(ovhData)
+    const [summaryResult, timeseriesResult, hourlyResult, callsResult, ovhResult] = results
+    setLoadError('')
+    if (summaryResult.status === 'fulfilled') {
+      setSummary(summaryResult.value)
+    } else {
+      setSummary(null)
+      setLoadError('Impossible de charger le dashboard. Vérifiez la connexion.')
+    }
+    if (timeseriesResult.status === 'fulfilled') {
+      setTimeseries(timeseriesResult.value)
+    } else {
+      setTimeseries([])
+      setLoadError((prev) => prev || 'Impossible de charger les statistiques.')
+    }
+    if (hourlyResult.status === 'fulfilled') {
+      setHourly(hourlyResult.value)
+    } else {
+      setHourly([])
+      setLoadError((prev) => prev || 'Impossible de charger les statistiques.')
+    }
+    if (callsResult.status === 'fulfilled') {
+      setLatestCalls(callsResult.value)
+    } else {
+      setLatestCalls([])
+      setLoadError((prev) => prev || 'Impossible de charger les appels récents.')
+    }
+    if (ovhResult.status === 'fulfilled') {
+      setOvhStatus(ovhResult.value)
+    } else {
+      setOvhStatus(null)
+    }
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -248,7 +277,16 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
     }
   }, [])
 
-  if (!summary) return <div>Chargement...</div>
+  if (loading) return <div>Chargement...</div>
+  if (!summary)
+    return (
+      <div className="card">
+        <p className="error">
+          {loadError || "Une erreur est survenue lors du chargement du dashboard."}
+        </p>
+        <button onClick={() => reload()}>Réessayer</button>
+      </div>
+    )
 
   const maxHourly = Math.max(1, ...hourly.map((point) => point.total))
 
@@ -653,6 +691,7 @@ const Users = ({ token }: { token: string }) => {
 }
 
 const OvhSettings = ({ token }: { token: string }) => {
+  const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState<any>(null)
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -667,8 +706,17 @@ const OvhSettings = ({ token }: { token: string }) => {
   }
 
   const load = async () => {
-    const data = await fetchOvhSettings(token)
-    setSettings(data)
+    setErrorMessage('')
+    try {
+      const data = await fetchOvhSettings(token)
+      setSettings(data)
+    } catch (error) {
+      const err = error as Error
+      setSettings(null)
+      setErrorMessage(err.message || 'Impossible de charger les paramètres OVH.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -701,7 +749,16 @@ const OvhSettings = ({ token }: { token: string }) => {
     return () => ws.close()
   }, [])
 
-  if (!settings) return <div>Chargement...</div>
+  if (loading) return <div>Chargement...</div>
+  if (!settings)
+    return (
+      <div className="card">
+        <p className="error">
+          {errorMessage || "Impossible de charger les paramètres OVH."}
+        </p>
+        <button onClick={() => load()}>Réessayer</button>
+      </div>
+    )
 
   return (
     <div>
