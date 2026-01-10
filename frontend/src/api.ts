@@ -8,6 +8,17 @@ const headers = (token?: string) => {
   return result
 }
 
+const resolveErrorMessage = async (response: Response, fallback: string) => {
+  const clone = response.clone()
+  const payload = await response.json().catch(() => null)
+  const detail = payload?.detail
+  const message =
+    detail?.message || detail || payload?.message || payload?.error || payload?.errors
+  if (message) return String(message)
+  const text = await clone.text().catch(() => '')
+  return text || fallback
+}
+
 export const login = async (username: string, password: string) => {
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
@@ -125,13 +136,14 @@ export const updateUser = async (token: string, userId: number, payload: any) =>
 
 export const fetchOvhSettings = async (token: string) => {
   const response = await fetch(`${API_BASE}/settings/ovh`, { headers: headers(token) })
-  const payload = await response.json().catch(() => ({}))
   if (!response.ok) {
-    const detail = payload?.detail
-    const message = detail?.message || detail || 'Settings failed'
+    const message = await resolveErrorMessage(
+      response,
+      'Impossible de charger les paramètres OVH.'
+    )
     throw new Error(message)
   }
-  return payload
+  return response.json()
 }
 
 export const saveOvhSettings = async (token: string, payload: any) => {
@@ -140,7 +152,13 @@ export const saveOvhSettings = async (token: string, payload: any) => {
     headers: headers(token),
     body: JSON.stringify(payload)
   })
-  if (!response.ok) throw new Error('Settings update failed')
+  if (!response.ok) {
+    const message = await resolveErrorMessage(
+      response,
+      "Impossible d'enregistrer les paramètres OVH."
+    )
+    throw new Error(message)
+  }
   return response.json()
 }
 
@@ -152,7 +170,7 @@ export const testOvhSettings = async (token: string) => {
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) {
     const detail = payload?.detail
-    const message = detail?.message || detail || 'Test failed'
+    const message = detail?.message || detail || payload?.message || 'Échec du test OVH.'
     const logs = detail?.logs || payload?.logs || []
     const error = new Error(message)
     ;(error as Error & { logs?: string[] }).logs = logs
