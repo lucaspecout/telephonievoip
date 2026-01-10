@@ -722,6 +722,17 @@ const OvhSettings = ({ token }: { token: string }) => {
           />
         </label>
         <label>
+          Numéro admin (appelant sortant)
+          <input
+            placeholder="Ex: +33123456789"
+            value={settings.admin_phone_number || ''}
+            onChange={(e) =>
+              setSettings({ ...settings, admin_phone_number: e.target.value })
+            }
+          />
+          <small>Exemple attendu: +33612345678 (format international conseillé).</small>
+        </label>
+        <label>
           App key
           <input
             value={settings.app_key || ''}
