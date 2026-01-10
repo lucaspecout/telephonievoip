@@ -125,8 +125,13 @@ export const updateUser = async (token: string, userId: number, payload: any) =>
 
 export const fetchOvhSettings = async (token: string) => {
   const response = await fetch(`${API_BASE}/settings/ovh`, { headers: headers(token) })
-  if (!response.ok) throw new Error('Settings failed')
-  return response.json()
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const detail = payload?.detail
+    const message = detail?.message || detail || 'Settings failed'
+    throw new Error(message)
+  }
+  return payload
 }
 
 export const saveOvhSettings = async (token: string, payload: any) => {
