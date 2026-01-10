@@ -3,9 +3,12 @@ import csv
 import io
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import List, Optional
 
 import redis.asyncio as redis
+from alembic import command
+from alembic.config import Config
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -48,6 +51,7 @@ worker_task: Optional[asyncio.Task] = None
 @app.on_event("startup")
 async def on_startup() -> None:
     await wait_for_database()
+    run_migrations()
     Base.metadata.create_all(bind=engine)
     bootstrap_admin()
     global redis_client, worker, scheduler_task, worker_task
@@ -111,6 +115,13 @@ def bootstrap_admin() -> None:
             db.commit()
     finally:
         db.close()
+
+
+def run_migrations() -> None:
+    alembic_ini = Path(__file__).resolve().parents[1] / "alembic.ini"
+    config = Config(str(alembic_ini))
+    config.set_main_option("sqlalchemy.url", settings.database_url)
+    command.upgrade(config, "head")
 
 
 async def publish_event(payload: dict) -> None:
