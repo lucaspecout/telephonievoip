@@ -121,13 +121,23 @@ def run_migrations() -> None:
     alembic_ini = Path(__file__).resolve().parents[1] / "alembic.ini"
     config = Config(str(alembic_ini))
     config.set_main_option("sqlalchemy.url", settings.database_url)
+    ovh_columns: set[str] = set()
     with engine.connect() as connection:
         inspector = inspect(connection)
         tables = inspector.get_table_names()
+        if "ovh_settings" in tables:
+            ovh_columns = {column["name"] for column in inspector.get_columns("ovh_settings")}
     if tables and "alembic_version" not in tables:
         logger.warning(
-            "Existing tables detected without alembic version; stamping head."
+            "Existing tables detected without alembic version; stamping baseline."
         )
+        if "ovh_settings" in tables and "admin_phone_number" not in ovh_columns:
+            logger.warning(
+                "OVH settings table missing admin_phone_number; stamping 0001 then upgrading."
+            )
+            command.stamp(config, "0001")
+            command.upgrade(config, "head")
+            return
         command.stamp(config, "head")
         return
     command.upgrade(config, "head")
