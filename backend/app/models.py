@@ -39,6 +39,7 @@ class OvhSettings(Base):
     id = Column(Integer, primary_key=True)
     billing_account = Column(String(255), nullable=True)
     service_names = Column(String(1024), nullable=True)
+    admin_phone_number = Column(String(64), nullable=True)
     app_key = Column(String(255), nullable=True)
     app_secret = Column(String(255), nullable=True)
     consumer_key = Column(String(255), nullable=True)

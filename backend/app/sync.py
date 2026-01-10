@@ -46,6 +46,23 @@ def normalize_direction(value: object) -> Optional[CallDirection]:
     return None
 
 
+def normalize_phone_number(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    digits = "".join(char for char in value if char.isdigit())
+    return digits or None
+
+
+def numbers_match(a: Optional[str], b: Optional[str]) -> bool:
+    normalized_a = normalize_phone_number(a)
+    normalized_b = normalize_phone_number(b)
+    if not normalized_a or not normalized_b:
+        return False
+    if normalized_a == normalized_b:
+        return True
+    return normalized_a.endswith(normalized_b) or normalized_b.endswith(normalized_a)
+
+
 def find_direction(payload: dict) -> Optional[CallDirection]:
     for key in DIRECTION_KEYS:
         if key in payload:
@@ -66,7 +83,9 @@ def find_direction(payload: dict) -> Optional[CallDirection]:
     return None
 
 
-def infer_direction(payload: dict) -> CallDirection:
+def infer_direction(payload: dict, admin_phone_number: Optional[str] = None) -> CallDirection:
+    if numbers_match(admin_phone_number, payload.get("calling")):
+        return CallDirection.OUTBOUND
     direction = find_direction(payload)
     if direction:
         return direction
@@ -87,14 +106,18 @@ def parse_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def map_payload_to_record(payload: dict, consumption_id: Optional[str] = None) -> CallRecord:
+def map_payload_to_record(
+    payload: dict,
+    consumption_id: Optional[str] = None,
+    admin_phone_number: Optional[str] = None,
+) -> CallRecord:
     ovh_id = payload.get("id") or payload.get("consumptionId") or consumption_id
     if not ovh_id:
         raise ValueError("Missing OVH consumption id")
     return CallRecord(
         ovh_consumption_id=str(ovh_id),
         started_at=parse_datetime(payload.get("creationDatetime") or payload.get("startDate")),
-        direction=infer_direction(payload),
+        direction=infer_direction(payload, admin_phone_number=admin_phone_number),
         calling_number=payload.get("calling"),
         called_number=payload.get("called"),
         duration=int(payload.get("duration") or 0),
@@ -140,7 +163,10 @@ async def sync_consumptions(db: Session, publish, range_days: Optional[int] = No
                 .first()
             )
             if existing:
-                updated_direction = infer_direction(existing.raw_payload or {})
+                updated_direction = infer_direction(
+                    existing.raw_payload or {},
+                    admin_phone_number=settings_row.admin_phone_number,
+                )
                 if updated_direction != existing.direction:
                     existing.direction = updated_direction
                     db.commit()
@@ -153,7 +179,11 @@ async def sync_consumptions(db: Session, publish, range_days: Optional[int] = No
                 continue
             try:
                 payload = client.get_consumption_detail(service_name, consumption_id)
-                record = map_payload_to_record(payload, consumption_id=str(consumption_id))
+                record = map_payload_to_record(
+                    payload,
+                    consumption_id=str(consumption_id),
+                    admin_phone_number=settings_row.admin_phone_number,
+                )
                 db.add(record)
                 db.commit()
                 db.refresh(record)

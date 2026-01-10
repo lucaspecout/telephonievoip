@@ -49,6 +49,7 @@ class MeResponse(UserOut):
 class OvhSettingsIn(BaseModel):
     billing_account: Optional[str] = None
     service_names: Optional[str] = None
+    admin_phone_number: Optional[str] = None
     app_key: Optional[str] = None
     app_secret: Optional[str] = None
     consumer_key: Optional[str] = None
