@@ -327,6 +327,55 @@ button {
   gap: 16px;
 }
 
+.team-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.team-subtitle {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.team-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  min-width: 260px;
+}
+
+.team-kpi {
+  background: #f3f4f6;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.team-kpi strong {
+  font-size: 18px;
+}
+
+.team-kpi-success {
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+}
+
+.team-kpi-warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.team-kpi-danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
 .team-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -336,24 +385,51 @@ button {
 
 .team-summary {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.team-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
   margin-bottom: 16px;
+}
+
+.team-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.team-search input {
+  border: none;
+  padding: 0;
+  flex: 1;
+  outline: none;
 }
 
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .team-card {
   background: #f9fafb;
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   border: 1px solid #e5e7eb;
 }
 
@@ -408,4 +484,13 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.button-ghost {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.button-ghost:hover {
+  background: #d1d5db;
 }
