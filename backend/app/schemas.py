@@ -70,6 +70,10 @@ class CallRecordOut(BaseModel):
     direction: CallDirection
     calling_number: Optional[str]
     called_number: Optional[str]
+    calling_team_name: Optional[str] = None
+    calling_leader_first_name: Optional[str] = None
+    called_team_name: Optional[str] = None
+    called_leader_first_name: Optional[str] = None
     duration: int
     status: Optional[str]
     is_missed: bool

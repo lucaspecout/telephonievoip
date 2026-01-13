@@ -356,8 +356,8 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
               <tr key={call.id}>
                 <td>{new Date(call.started_at).toLocaleString()}</td>
                 <td>{formatDirection(call.direction)}</td>
-                <td>{formatFrenchNumber(call.calling_number)}</td>
-                <td>{formatFrenchNumber(call.called_number)}</td>
+                <td>{formatCallParty(call, 'calling')}</td>
+                <td>{formatCallParty(call, 'called')}</td>
                 <td>{call.duration}s</td>
                 <td>{formatCallStatus(call)}</td>
                 <td>
@@ -454,6 +454,22 @@ const formatFrenchNumber = (value?: string | null) => {
     return digits.replace(/(\d{2})(?=\d)/g, '$1 ').trim()
   }
   return value
+}
+
+const formatCallParty = (call: any, side: 'calling' | 'called') => {
+  const teamName = call[`${side}_team_name`]
+  const leaderFirstName = call[`${side}_leader_first_name`]
+  if (teamName && leaderFirstName) {
+    return `${teamName} - ${leaderFirstName}`
+  }
+  if (teamName) {
+    return teamName
+  }
+  if (leaderFirstName) {
+    return leaderFirstName
+  }
+  const number = side === 'calling' ? call.calling_number : call.called_number
+  return formatFrenchNumber(number)
 }
 
 const formatDuration = (seconds: number) => {
@@ -961,8 +977,8 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
               <tr key={call.id}>
                 <td>{new Date(call.started_at).toLocaleString()}</td>
                 <td>{formatDirection(call.direction)}</td>
-                <td>{formatFrenchNumber(call.calling_number)}</td>
-                <td>{formatFrenchNumber(call.called_number)}</td>
+                <td>{formatCallParty(call, 'calling')}</td>
+                <td>{formatCallParty(call, 'called')}</td>
                 <td>{call.duration}s</td>
                 <td>{formatCallStatus(call)}</td>
                 <td>{call.is_missed ? 'Oui' : 'Non'}</td>
