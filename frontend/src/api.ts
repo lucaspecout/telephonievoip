@@ -141,7 +141,9 @@ export const fetchOvhSettings = async (token: string) => {
       response,
       'Impossible de charger les paramètres OVH.'
     )
-    throw new Error(message)
+    const error = new Error(message) as Error & { status?: number }
+    error.status = response.status
+    throw error
   }
   return response.json()
 }

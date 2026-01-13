@@ -12,7 +12,7 @@ from alembic.config import Config
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, inspect
+from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -141,6 +141,27 @@ def run_migrations() -> None:
         command.stamp(config, "head")
         return
     command.upgrade(config, "head")
+    ensure_ovh_settings_schema()
+
+
+def ensure_ovh_settings_schema() -> None:
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        tables = inspector.get_table_names()
+        if "ovh_settings" not in tables:
+            return
+        columns = {column["name"] for column in inspector.get_columns("ovh_settings")}
+        if "admin_phone_number" not in columns:
+            logger.warning(
+                "OVH settings table missing admin_phone_number; applying emergency ALTER."
+            )
+            connection.execute(
+                text(
+                    "ALTER TABLE ovh_settings "
+                    "ADD COLUMN admin_phone_number VARCHAR(64)"
+                )
+            )
+            connection.commit()
 
 
 async def publish_event(payload: dict) -> None:
