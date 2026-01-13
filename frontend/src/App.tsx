@@ -9,7 +9,6 @@ import {
   fetchCalls,
   fetchDashboardSummary,
   fetchDashboardHourly,
-  fetchDashboardTimeseries,
   fetchTeamLeads,
   fetchMe,
   fetchOvhSettings,
@@ -219,37 +218,26 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
     today_avg_duration: number
     week_avg_duration: number
   } | null>(null)
-  const [timeseries, setTimeseries] = useState<
-    { date: string; total: number; missed: number }[]
-  >([])
   const [hourly, setHourly] = useState<{ hour: number; total: number }[]>([])
   const [latestCalls, setLatestCalls] = useState<any[]>([])
-  const [ovhStatus, setOvhStatus] = useState<{
-    last_sync_at?: string | null
-    last_error?: string | null
-  } | null>(null)
+  const [latestCallsFilters, setLatestCallsFilters] = useState({
+    start_date: '',
+    end_date: ''
+  })
 
   const reload = async () => {
     const results = await Promise.allSettled([
       fetchDashboardSummary(token),
-      fetchDashboardTimeseries(token),
       fetchDashboardHourly(token),
-      fetchCalls(token, { page: 1, page_size: 5 }),
-      isAdmin ? fetchOvhSettings(token) : Promise.resolve(null)
+      fetchCalls(token, { page: 1, page_size: 5, ...latestCallsFilters })
     ])
-    const [summaryResult, timeseriesResult, hourlyResult, callsResult, ovhResult] = results
+    const [summaryResult, hourlyResult, callsResult] = results
     setLoadError('')
     if (summaryResult.status === 'fulfilled') {
       setSummary(summaryResult.value)
     } else {
       setSummary(null)
       setLoadError('Impossible de charger le dashboard. Vérifiez la connexion.')
-    }
-    if (timeseriesResult.status === 'fulfilled') {
-      setTimeseries(timeseriesResult.value)
-    } else {
-      setTimeseries([])
-      setLoadError((prev) => prev || 'Impossible de charger les statistiques.')
     }
     if (hourlyResult.status === 'fulfilled') {
       setHourly(hourlyResult.value)
@@ -262,11 +250,6 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
     } else {
       setLatestCalls([])
       setLoadError((prev) => prev || 'Impossible de charger les appels récents.')
-    }
-    if (ovhResult.status === 'fulfilled') {
-      setOvhStatus(ovhResult.value)
-    } else {
-      setOvhStatus(null)
     }
     setLoading(false)
   }
@@ -283,6 +266,10 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
       window.clearInterval(intervalId)
     }
   }, [])
+
+  useEffect(() => {
+    reload()
+  }, [latestCallsFilters])
 
   if (loading) return <div>Chargement...</div>
   if (!summary)
@@ -320,45 +307,6 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
           <Kpi label="⏱️ Durée moyenne" value={formatDuration(summary.week_avg_duration)} />
         </div>
       </div>
-      {isAdmin && (
-        <section className="card">
-          <h3>Statut OVH</h3>
-          <div className="status-grid">
-            <div className="status-item">
-              <span>Connexion</span>
-              <strong className={ovhStatus?.last_error ? 'status-bad' : 'status-good'}>
-                {ovhStatus?.last_error ? '⚠️ Erreur' : '✅ OK'}
-              </strong>
-            </div>
-            <div className="status-item">
-              <span>Dernière synchro</span>
-              <strong>
-                {ovhStatus?.last_sync_at
-                  ? new Date(ovhStatus.last_sync_at).toLocaleString()
-                  : '⏳ En attente'}
-              </strong>
-            </div>
-            <div className="status-item">
-              <span>Dernier message</span>
-              <strong className={ovhStatus?.last_error ? 'status-bad' : ''}>
-                {ovhStatus?.last_error ? `🧯 ${ovhStatus.last_error}` : 'Rien à signaler'}
-              </strong>
-            </div>
-          </div>
-        </section>
-      )}
-      <section className="card">
-        <h3>Appels quotidiens</h3>
-        <div className="timeseries">
-          {timeseries.map((point) => (
-            <div key={point.date} className="timeseries-item">
-              <span>{point.date}</span>
-              <strong>{point.total}</strong>
-              <small>Manqués : {point.missed}</small>
-            </div>
-          ))}
-        </div>
-      </section>
       <section className="card">
         <h3>Appels de la journée par heure</h3>
         <div className="hourly-chart">
@@ -379,7 +327,18 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
         </div>
       </section>
       <section className="card">
-        <h3>Derniers appels</h3>
+        <div className="card-header">
+          <h3>Derniers appels</h3>
+          <button
+            type="button"
+            onClick={() => {
+              const today = getTodayDate()
+              setLatestCallsFilters({ start_date: today, end_date: today })
+            }}
+          >
+            Filtrer aujourd'hui
+          </button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -418,6 +377,29 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
             ))}
           </tbody>
         </table>
+      </section>
+      <section className="card">
+        <h3>Infos utiles</h3>
+        <div className="status-grid">
+          <div className="status-item">
+            <span>Taux de réponse aujourd'hui</span>
+            <strong>
+              {summary.today_total
+                ? `${Math.round(
+                    ((summary.today_total - summary.today_missed) / summary.today_total) * 100
+                  )}%`
+                : '—'}
+            </strong>
+          </div>
+          <div className="status-item">
+            <span>Total appels 7 jours</span>
+            <strong>{summary.week_total}</strong>
+          </div>
+          <div className="status-item">
+            <span>Durée moyenne 7 jours</span>
+            <strong>{formatDuration(summary.week_avg_duration)}</strong>
+          </div>
+        </div>
       </section>
     </div>
   )
@@ -480,6 +462,11 @@ const formatDuration = (seconds: number) => {
   const minutes = Math.floor(seconds / 60)
   const remaining = seconds % 60
   return `${minutes}m ${String(remaining).padStart(2, '0')}s`
+}
+
+const getTodayDate = () => {
+  const today = new Date()
+  return today.toISOString().slice(0, 10)
 }
 
 const getCallbackNumber = (call: any) =>
@@ -932,6 +919,16 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
           onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
         />
         <button onClick={() => load()}>Filtrer</button>
+        <button
+          type="button"
+          onClick={() => {
+            const today = getTodayDate()
+            setFilters({ ...filters, start_date: today, end_date: today })
+            setPage(1)
+          }}
+        >
+          Aujourd'hui
+        </button>
         {isAdmin && (
           <button onClick={() => exportCallsCsv(token, filters)}>Export CSV</button>
         )}
@@ -1266,6 +1263,11 @@ const SyncDebug = ({ token }: { token: string }) => {
   const [status, setStatus] = useState<'idle' | 'running' | 'error'>('idle')
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [ovhStatus, setOvhStatus] = useState<{
+    last_sync_at?: string | null
+    last_error?: string | null
+  } | null>(null)
+  const [ovhStatusError, setOvhStatusError] = useState('')
 
   const runDiagnostic = async (mode: 'dry_run' | 'force_sync') => {
     setStatus('running')
@@ -1291,9 +1293,55 @@ const SyncDebug = ({ token }: { token: string }) => {
     }
   }
 
+  const loadOvhStatus = useCallback(async () => {
+    try {
+      const result = await fetchOvhSettings(token)
+      setOvhStatus(result)
+      setOvhStatusError('')
+    } catch (error) {
+      setOvhStatus(null)
+      setOvhStatusError((error as Error).message || 'Impossible de charger le statut OVH.')
+    }
+  }, [token])
+
+  useEffect(() => {
+    loadOvhStatus()
+  }, [loadOvhStatus])
+
   return (
     <div>
       <h2>Debug synchronisation</h2>
+      <section className="card">
+        <div className="card-header">
+          <h3>Statut OVH</h3>
+          <button type="button" onClick={loadOvhStatus}>
+            Actualiser
+          </button>
+        </div>
+        {ovhStatusError && <p className="error">{ovhStatusError}</p>}
+        <div className="status-grid">
+          <div className="status-item">
+            <span>Connexion</span>
+            <strong className={ovhStatus?.last_error ? 'status-bad' : 'status-good'}>
+              {ovhStatus?.last_error ? '⚠️ Erreur' : '✅ OK'}
+            </strong>
+          </div>
+          <div className="status-item">
+            <span>Dernière synchro</span>
+            <strong>
+              {ovhStatus?.last_sync_at
+                ? new Date(ovhStatus.last_sync_at).toLocaleString()
+                : '⏳ En attente'}
+            </strong>
+          </div>
+          <div className="status-item">
+            <span>Dernier message</span>
+            <strong className={ovhStatus?.last_error ? 'status-bad' : ''}>
+              {ovhStatus?.last_error ? `🧯 ${ovhStatus.last_error}` : 'Rien à signaler'}
+            </strong>
+          </div>
+        </div>
+      </section>
       <div className="card">
         <p>
           Ce diagnostic vérifie la fenêtre de synchronisation, l'accès OVH et
