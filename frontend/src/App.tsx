@@ -529,6 +529,9 @@ const TeamLeads = () => {
     phone: '',
     status: 'Disponible' as TeamLeadStatus
   })
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<TeamLeadStatus | ''>('')
+  const [teamFilter, setTeamFilter] = useState('')
 
   const persistTeamLeads = (next: TeamLead[]) => {
     setTeamLeads(next)
@@ -580,9 +583,65 @@ const TeamLeads = () => {
     persistTeamLeads(next)
   }
 
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const filteredLeads = teamLeads.filter((lead) => {
+    if (statusFilter && lead.status !== statusFilter) return false
+    if (teamFilter && lead.teamName !== teamFilter) return false
+    if (!normalizedSearch) return true
+    const haystack = [
+      lead.teamName,
+      lead.leaderFirstName,
+      lead.leaderLastName,
+      lead.phone
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+    return haystack.includes(normalizedSearch)
+  })
+  const uniqueTeams = Array.from(
+    new Set(teamLeads.map((lead) => lead.teamName).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, 'fr'))
+  const statusCounts = teamLeads.reduce(
+    (acc, lead) => {
+      acc.total += 1
+      acc[lead.status] += 1
+      return acc
+    },
+    {
+      total: 0,
+      Disponible: 0,
+      'En intervention': 0,
+      Indisponible: 0
+    } as Record<TeamLeadStatus | 'total', number>
+  )
+
   return (
     <div className="team-board">
-      <h2>Moyens d'équipe</h2>
+      <div className="team-header">
+        <div>
+          <h2>Moyens d'équipe</h2>
+          <p className="team-subtitle">Suivi rapide des équipes et disponibilité en temps réel.</p>
+        </div>
+        <div className="team-kpis">
+          <div className="team-kpi">
+            <span>Total</span>
+            <strong>{statusCounts.total}</strong>
+          </div>
+          <div className="team-kpi team-kpi-success">
+            <span>Disponible</span>
+            <strong>{statusCounts.Disponible}</strong>
+          </div>
+          <div className="team-kpi team-kpi-warning">
+            <span>En intervention</span>
+            <strong>{statusCounts['En intervention']}</strong>
+          </div>
+          <div className="team-kpi team-kpi-danger">
+            <span>Indisponible</span>
+            <strong>{statusCounts.Indisponible}</strong>
+          </div>
+        </div>
+      </div>
       <section className="card">
         <h3>Ajouter un chef d'équipe</h3>
         <div className="team-form">
@@ -649,14 +708,62 @@ const TeamLeads = () => {
       </section>
       <section className="card">
         <div className="team-summary">
-          <h3>Moyens disponibles</h3>
-          <span>{teamLeads.length} équipe(s)</span>
+          <div>
+            <h3>Moyens disponibles</h3>
+            <span>{filteredLeads.length} équipe(s) affichée(s)</span>
+          </div>
+          <button
+            type="button"
+            className="button-ghost"
+            onClick={() => {
+              setSearchTerm('')
+              setStatusFilter('')
+              setTeamFilter('')
+            }}
+          >
+            Réinitialiser
+          </button>
+        </div>
+        <div className="team-controls">
+          <div className="team-search">
+            <span aria-hidden="true">🔍</span>
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Rechercher un chef, une équipe ou un numéro..."
+            />
+          </div>
+          <label>
+            Statut
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as TeamLeadStatus | '')}
+            >
+              <option value="">Tous</option>
+              <option value="Disponible">Disponible</option>
+              <option value="En intervention">En intervention</option>
+              <option value="Indisponible">Indisponible</option>
+            </select>
+          </label>
+          <label>
+            Équipe
+            <select value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}>
+              <option value="">Toutes</option>
+              {uniqueTeams.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         {teamLeads.length === 0 ? (
           <p>Aucun chef d'équipe enregistré.</p>
+        ) : filteredLeads.length === 0 ? (
+          <p>Aucun résultat avec ces filtres.</p>
         ) : (
           <div className="team-grid">
-            {teamLeads.map((lead) => {
+            {filteredLeads.map((lead) => {
               const dialable = toDialableNumber(lead.phone)
               return (
                 <div key={lead.id} className="team-card">
