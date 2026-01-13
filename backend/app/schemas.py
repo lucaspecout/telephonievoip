@@ -100,3 +100,31 @@ class TimeseriesPoint(BaseModel):
 class HourlyPoint(BaseModel):
     hour: int
     total: int
+
+
+class TeamLeadIn(BaseModel):
+    team_name: str
+    leader_first_name: str
+    leader_last_name: str
+    phone: Optional[str] = None
+    status: str
+
+
+class TeamLeadUpdate(BaseModel):
+    team_name: Optional[str] = None
+    leader_first_name: Optional[str] = None
+    leader_last_name: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = None
+
+
+class TeamLeadOut(BaseModel):
+    id: int
+    team_name: str
+    leader_first_name: str
+    leader_last_name: str
+    phone: Optional[str]
+    status: str
+
+    class Config:
+        from_attributes = True
