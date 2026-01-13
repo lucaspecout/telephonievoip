@@ -695,6 +695,7 @@ const OvhSettings = ({ token }: { token: string }) => {
   const [settings, setSettings] = useState<any>(null)
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [isForbidden, setIsForbidden] = useState(false)
   const [testLogs, setTestLogs] = useState<string[]>([])
   const [syncStatus, setSyncStatus] = useState<'idle' | 'pending' | 'error'>('idle')
 
@@ -707,12 +708,16 @@ const OvhSettings = ({ token }: { token: string }) => {
 
   const load = async () => {
     setErrorMessage('')
+    setIsForbidden(false)
     try {
       const data = await fetchOvhSettings(token)
       setSettings(data)
     } catch (error) {
-      const err = error as Error
+      const err = error as Error & { status?: number }
       setSettings(null)
+      if (err.status === 403) {
+        setIsForbidden(true)
+      }
       setErrorMessage(err.message || 'Impossible de charger les paramètres OVH.')
     } finally {
       setLoading(false)
@@ -756,7 +761,14 @@ const OvhSettings = ({ token }: { token: string }) => {
         <p className="error">
           {errorMessage || "Impossible de charger les paramètres OVH."}
         </p>
-        <button onClick={() => load()}>Réessayer</button>
+        {isForbidden ? (
+          <p>
+            Seuls les comptes administrateurs peuvent accéder à ce menu. Revenez
+            à un compte <strong>ADMIN</strong> ou demandez l'accès.
+          </p>
+        ) : (
+          <button onClick={() => load()}>Réessayer</button>
+        )}
       </div>
     )
 
