@@ -515,6 +515,7 @@ const TeamLeads = ({ token }: { token: string }) => {
   const [loadError, setLoadError] = useState('')
   const [formState, setFormState] = useState({
     teamName: '',
+    teamEmoji: '',
     leaderFirstName: '',
     leaderLastName: '',
     phone: '',
@@ -559,8 +560,11 @@ const TeamLeads = ({ token }: { token: string }) => {
 
   const addTeamLead = async () => {
     if (!formState.teamName || !formState.leaderFirstName || !formState.leaderLastName) return
+    const decoratedTeamName = formState.teamEmoji
+      ? `${formState.teamEmoji} ${formState.teamName}`
+      : formState.teamName
     const created = await createTeamLead(token, {
-      team_name: formState.teamName,
+      team_name: decoratedTeamName,
       leader_first_name: formState.leaderFirstName,
       leader_last_name: formState.leaderLastName,
       phone: formState.phone,
@@ -579,6 +583,7 @@ const TeamLeads = ({ token }: { token: string }) => {
     ])
     setFormState({
       teamName: '',
+      teamEmoji: '',
       leaderFirstName: '',
       leaderLastName: '',
       phone: '',
@@ -670,6 +675,21 @@ const TeamLeads = ({ token }: { token: string }) => {
               }
               placeholder="VPSP-1, PSA..."
             />
+          </label>
+          <label>
+            Emoji d'équipe
+            <select
+              value={formState.teamEmoji}
+              onChange={(event) =>
+                setFormState((prev) => ({ ...prev, teamEmoji: event.target.value }))
+              }
+            >
+              <option value="">Aucun</option>
+              <option value="🚑">🚑 Ambulance</option>
+              <option value="🚙">🚙 4x4</option>
+              <option value="⛺">⛺ Tente secours</option>
+              <option value="⛑️">⛑️ Secouriste</option>
+            </select>
           </label>
           <label>
             Prénom
