@@ -805,7 +805,16 @@ const TeamLeads = ({ token }: { token: string }) => {
                 <div key={lead.id} className="team-card">
                   <div className="team-card-header">
                     <div>
-                      <strong>{lead.teamName}</strong>
+                      <div className="team-card-title">
+                        <span
+                          className={`team-status-dot team-status-dot-${lead.status.replace(
+                            ' ',
+                            '-'
+                          )}`}
+                          aria-hidden="true"
+                        />
+                        <strong>{lead.teamName}</strong>
+                      </div>
                       <p>
                         {lead.leaderFirstName} {lead.leaderLastName}
                       </p>

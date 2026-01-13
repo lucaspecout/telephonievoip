@@ -445,6 +445,32 @@ button {
   color: #4b5563;
 }
 
+.team-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: #d1d5db;
+}
+
+.team-status-dot-Disponible {
+  background: #22c55e;
+}
+
+.team-status-dot-En-intervention {
+  background: #f59e0b;
+}
+
+.team-status-dot-Indisponible {
+  background: #ef4444;
+}
+
 .team-status {
   padding: 4px 10px;
   border-radius: 999px;
