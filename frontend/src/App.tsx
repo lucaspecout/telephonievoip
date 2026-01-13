@@ -3,11 +3,14 @@ import {
   changePassword,
   createUser,
   debugSync,
+  createTeamLead,
+  deleteTeamLead,
   exportCallsCsv,
   fetchCalls,
   fetchDashboardSummary,
   fetchDashboardHourly,
   fetchDashboardTimeseries,
+  fetchTeamLeads,
   fetchMe,
   fetchOvhSettings,
   fetchUsers,
@@ -15,6 +18,7 @@ import {
   saveOvhSettings,
   testOvhSettings,
   triggerSync,
+  updateTeamLead,
   updateUser
 } from './api'
 
@@ -108,7 +112,7 @@ const App = () => {
       <main>
         {page === 'dashboard' && <Dashboard token={token} isAdmin={isAdmin} />}
         {page === 'calls' && <Calls token={token} isAdmin={isAdmin} />}
-        {page === 'teams' && <TeamLeads />}
+        {page === 'teams' && <TeamLeads token={token} />}
         {page === 'users' && isAdmin && <Users token={token} />}
         {page === 'settings' && isAdmin && <OvhSettings token={token} />}
         {page === 'debug' && isAdmin && <SyncDebug token={token} />}
@@ -498,7 +502,7 @@ const formatCallStatus = (call: any) => {
 type TeamLeadStatus = 'Disponible' | 'En intervention' | 'Indisponible'
 
 type TeamLead = {
-  id: string
+  id: number
   teamName: string
   leaderFirstName: string
   leaderLastName: string
@@ -506,22 +510,9 @@ type TeamLead = {
   status: TeamLeadStatus
 }
 
-const TEAM_LEADS_STORAGE_KEY = 'team-leads'
-
-const loadTeamLeads = (): TeamLead[] => {
-  if (typeof window === 'undefined') return []
-  const raw = localStorage.getItem(TEAM_LEADS_STORAGE_KEY)
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-const TeamLeads = () => {
-  const [teamLeads, setTeamLeads] = useState<TeamLead[]>(() => loadTeamLeads())
+const TeamLeads = ({ token }: { token: string }) => {
+  const [teamLeads, setTeamLeads] = useState<TeamLead[]>([])
+  const [loadError, setLoadError] = useState('')
   const [formState, setFormState] = useState({
     teamName: '',
     leaderFirstName: '',
@@ -533,37 +524,55 @@ const TeamLeads = () => {
   const [statusFilter, setStatusFilter] = useState<TeamLeadStatus | ''>('')
   const [teamFilter, setTeamFilter] = useState('')
 
-  const persistTeamLeads = (next: TeamLead[]) => {
-    setTeamLeads(next)
-    localStorage.setItem(TEAM_LEADS_STORAGE_KEY, JSON.stringify(next))
-  }
+  const loadTeamLeads = useCallback(async () => {
+    try {
+      const data = await fetchTeamLeads(token)
+      const mapped = data.map((lead: any) => ({
+        id: lead.id,
+        teamName: lead.team_name,
+        leaderFirstName: lead.leader_first_name,
+        leaderLastName: lead.leader_last_name,
+        phone: lead.phone ?? '',
+        status: lead.status as TeamLeadStatus
+      }))
+      setTeamLeads(mapped)
+      setLoadError('')
+    } catch (error) {
+      setLoadError("Impossible de charger les moyens d'équipe.")
+    }
+  }, [token])
 
   useEffect(() => {
-    const handler = (event: StorageEvent) => {
-      if (event.key === TEAM_LEADS_STORAGE_KEY) {
-        setTeamLeads(loadTeamLeads())
-      }
+    loadTeamLeads()
+    const ws = new WebSocket(wsUrl())
+    ws.onmessage = () => {
+      loadTeamLeads()
     }
-    window.addEventListener('storage', handler)
     return () => {
-      window.removeEventListener('storage', handler)
+      ws.close()
     }
-  }, [])
+  }, [loadTeamLeads])
 
-  const addTeamLead = () => {
+  const addTeamLead = async () => {
     if (!formState.teamName || !formState.leaderFirstName || !formState.leaderLastName) return
-    const next: TeamLead[] = [
+    const created = await createTeamLead(token, {
+      team_name: formState.teamName,
+      leader_first_name: formState.leaderFirstName,
+      leader_last_name: formState.leaderLastName,
+      phone: formState.phone,
+      status: formState.status
+    })
+    setTeamLeads((prev) => [
       {
-        id: crypto.randomUUID(),
-        teamName: formState.teamName,
-        leaderFirstName: formState.leaderFirstName,
-        leaderLastName: formState.leaderLastName,
-        phone: formState.phone,
-        status: formState.status
+        id: created.id,
+        teamName: created.team_name,
+        leaderFirstName: created.leader_first_name,
+        leaderLastName: created.leader_last_name,
+        phone: created.phone ?? '',
+        status: created.status
       },
-      ...teamLeads
-    ]
-    persistTeamLeads(next)
+      ...prev
+    ])
     setFormState({
       teamName: '',
       leaderFirstName: '',
@@ -573,14 +582,16 @@ const TeamLeads = () => {
     })
   }
 
-  const updateStatus = (id: string, status: TeamLeadStatus) => {
-    const next = teamLeads.map((lead) => (lead.id === id ? { ...lead, status } : lead))
-    persistTeamLeads(next)
+  const updateStatus = async (id: number, status: TeamLeadStatus) => {
+    const updated = await updateTeamLead(token, id, { status })
+    setTeamLeads((prev) =>
+      prev.map((lead) => (lead.id === id ? { ...lead, status: updated.status } : lead))
+    )
   }
 
-  const removeLead = (id: string) => {
-    const next = teamLeads.filter((lead) => lead.id !== id)
-    persistTeamLeads(next)
+  const removeLead = async (id: number) => {
+    await deleteTeamLead(token, id)
+    setTeamLeads((prev) => prev.filter((lead) => lead.id !== id))
   }
 
   const normalizedSearch = searchTerm.trim().toLowerCase()
@@ -642,6 +653,7 @@ const TeamLeads = () => {
           </div>
         </div>
       </div>
+      {loadError && <p className="error">{loadError}</p>}
       <section className="card">
         <h3>Ajouter un chef d'équipe</h3>
         <div className="team-form">

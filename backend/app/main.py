@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from app.auth import auth_service, get_current_user, require_role
 from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db
-from app.models import CallRecord, Role, User, OvhSettings, CallDirection
+from app.models import CallRecord, Role, User, OvhSettings, CallDirection, TeamLead
 from app.schemas import (
     CallRecordOut,
     ChangePasswordRequest,
@@ -29,6 +29,9 @@ from app.schemas import (
     MeResponse,
     OvhSettingsIn,
     OvhSettingsOut,
+    TeamLeadIn,
+    TeamLeadOut,
+    TeamLeadUpdate,
     TimeseriesPoint,
     TokenResponse,
     UserCreate,
@@ -422,6 +425,63 @@ def dashboard_hourly(
     )
     totals = {int(row[0]): row[1] for row in results}
     return [HourlyPoint(hour=hour, total=totals.get(hour, 0)) for hour in range(24)]
+
+
+@app.get("/team-leads", response_model=List[TeamLeadOut])
+def list_team_leads(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> List[TeamLeadOut]:
+    leads = db.query(TeamLead).order_by(TeamLead.team_name, TeamLead.leader_last_name).all()
+    return [TeamLeadOut.model_validate(lead) for lead in leads]
+
+
+@app.post("/team-leads", response_model=TeamLeadOut)
+async def create_team_lead(
+    data: TeamLeadIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> TeamLeadOut:
+    lead = TeamLead(
+        team_name=data.team_name,
+        leader_first_name=data.leader_first_name,
+        leader_last_name=data.leader_last_name,
+        phone=data.phone,
+        status=data.status,
+    )
+    db.add(lead)
+    db.commit()
+    db.refresh(lead)
+    await publish_event({"type": "team_leads_updated"})
+    return TeamLeadOut.model_validate(lead)
+
+
+@app.patch("/team-leads/{lead_id}", response_model=TeamLeadOut)
+async def update_team_lead(
+    lead_id: int,
+    data: TeamLeadUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TeamLeadOut:
+    lead = db.query(TeamLead).filter(TeamLead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Team lead not found")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(lead, field, value)
+    db.commit()
+    db.refresh(lead)
+    await publish_event({"type": "team_leads_updated"})
+    return TeamLeadOut.model_validate(lead)
+
+
+@app.delete("/team-leads/{lead_id}")
+async def delete_team_lead(
+    lead_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
+    lead = db.query(TeamLead).filter(TeamLead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Team lead not found")
+    db.delete(lead)
+    db.commit()
+    await publish_event({"type": "team_leads_updated"})
+    return {"status": "deleted"}
 
 
 @app.get("/users", response_model=List[UserOut], dependencies=[Depends(require_role(Role.ADMIN))])

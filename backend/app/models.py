@@ -67,3 +67,21 @@ class CallRecord(Base):
     is_missed = Column(Boolean, default=False, index=True)
     raw_payload = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class TeamLead(Base):
+    __tablename__ = "team_leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_name = Column(String(120), nullable=False)
+    leader_first_name = Column(String(120), nullable=False)
+    leader_last_name = Column(String(120), nullable=False)
+    phone = Column(String(64), nullable=True)
+    status = Column(String(32), nullable=False, default="Disponible")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )

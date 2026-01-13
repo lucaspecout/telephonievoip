@@ -216,3 +216,38 @@ export const debugSync = async (
   }
   return payload
 }
+
+export const fetchTeamLeads = async (token: string) => {
+  const response = await fetch(`${API_BASE}/team-leads`, { headers: headers(token) })
+  if (!response.ok) throw new Error('Team leads failed')
+  return response.json()
+}
+
+export const createTeamLead = async (token: string, payload: any) => {
+  const response = await fetch(`${API_BASE}/team-leads`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Team lead create failed')
+  return response.json()
+}
+
+export const updateTeamLead = async (token: string, leadId: number, payload: any) => {
+  const response = await fetch(`${API_BASE}/team-leads/${leadId}`, {
+    method: 'PATCH',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Team lead update failed')
+  return response.json()
+}
+
+export const deleteTeamLead = async (token: string, leadId: number) => {
+  const response = await fetch(`${API_BASE}/team-leads/${leadId}`, {
+    method: 'DELETE',
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('Team lead delete failed')
+  return response.json()
+}
