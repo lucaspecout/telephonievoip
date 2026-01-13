@@ -853,13 +853,14 @@ const TeamLeads = ({ token }: { token: string }) => {
 
 const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   const [calls, setCalls] = useState<any[]>([])
-  const [filters, setFilters] = useState({
+  const initialFilters = {
     number: '',
     direction: '',
     missed: '',
     start_date: '',
     end_date: ''
-  })
+  }
+  const [filters, setFilters] = useState(initialFilters)
   const [page, setPage] = useState(1)
 
   const load = useCallback(async () => {
@@ -919,6 +920,15 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
           onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
         />
         <button onClick={() => load()}>Filtrer</button>
+        <button
+          type="button"
+          onClick={() => {
+            setFilters(initialFilters)
+            setPage(1)
+          }}
+        >
+          Réinitialiser
+        </button>
         <button
           type="button"
           onClick={() => {
