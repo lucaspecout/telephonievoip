@@ -28,6 +28,7 @@ export type User = {
 const pages = {
   dashboard: 'Dashboard',
   calls: 'Appels',
+  teams: "Moyens d'équipe",
   users: 'Utilisateurs',
   settings: 'Paramètres OVH',
   debug: 'Debug synchro',
@@ -87,6 +88,7 @@ const App = () => {
         <nav>
           <button onClick={() => setPage('dashboard')}>Dashboard</button>
           <button onClick={() => setPage('calls')}>Appels</button>
+          <button onClick={() => setPage('teams')}>Moyens d'équipe</button>
           {isAdmin && <button onClick={() => setPage('users')}>Utilisateurs</button>}
           {isAdmin && <button onClick={() => setPage('settings')}>Paramètres OVH</button>}
           {isAdmin && <button onClick={() => setPage('debug')}>Debug synchro</button>}
@@ -106,6 +108,7 @@ const App = () => {
       <main>
         {page === 'dashboard' && <Dashboard token={token} isAdmin={isAdmin} />}
         {page === 'calls' && <Calls token={token} isAdmin={isAdmin} />}
+        {page === 'teams' && <TeamLeads />}
         {page === 'users' && isAdmin && <Users token={token} />}
         {page === 'settings' && isAdmin && <OvhSettings token={token} />}
         {page === 'debug' && isAdmin && <SyncDebug token={token} />}
@@ -490,6 +493,223 @@ const formatCallStatus = (call: any) => {
     return <span className="badge badge-neutral">ℹ️ {call.status}</span>
   }
   return <span className="badge badge-neutral">✅ Répondu</span>
+}
+
+type TeamLeadStatus = 'Disponible' | 'En intervention' | 'Indisponible'
+
+type TeamLead = {
+  id: string
+  teamName: string
+  leaderFirstName: string
+  leaderLastName: string
+  phone: string
+  status: TeamLeadStatus
+}
+
+const TEAM_LEADS_STORAGE_KEY = 'team-leads'
+
+const loadTeamLeads = (): TeamLead[] => {
+  if (typeof window === 'undefined') return []
+  const raw = localStorage.getItem(TEAM_LEADS_STORAGE_KEY)
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const TeamLeads = () => {
+  const [teamLeads, setTeamLeads] = useState<TeamLead[]>(() => loadTeamLeads())
+  const [formState, setFormState] = useState({
+    teamName: '',
+    leaderFirstName: '',
+    leaderLastName: '',
+    phone: '',
+    status: 'Disponible' as TeamLeadStatus
+  })
+
+  const persistTeamLeads = (next: TeamLead[]) => {
+    setTeamLeads(next)
+    localStorage.setItem(TEAM_LEADS_STORAGE_KEY, JSON.stringify(next))
+  }
+
+  useEffect(() => {
+    const handler = (event: StorageEvent) => {
+      if (event.key === TEAM_LEADS_STORAGE_KEY) {
+        setTeamLeads(loadTeamLeads())
+      }
+    }
+    window.addEventListener('storage', handler)
+    return () => {
+      window.removeEventListener('storage', handler)
+    }
+  }, [])
+
+  const addTeamLead = () => {
+    if (!formState.teamName || !formState.leaderFirstName || !formState.leaderLastName) return
+    const next: TeamLead[] = [
+      {
+        id: crypto.randomUUID(),
+        teamName: formState.teamName,
+        leaderFirstName: formState.leaderFirstName,
+        leaderLastName: formState.leaderLastName,
+        phone: formState.phone,
+        status: formState.status
+      },
+      ...teamLeads
+    ]
+    persistTeamLeads(next)
+    setFormState({
+      teamName: '',
+      leaderFirstName: '',
+      leaderLastName: '',
+      phone: '',
+      status: 'Disponible'
+    })
+  }
+
+  const updateStatus = (id: string, status: TeamLeadStatus) => {
+    const next = teamLeads.map((lead) => (lead.id === id ? { ...lead, status } : lead))
+    persistTeamLeads(next)
+  }
+
+  const removeLead = (id: string) => {
+    const next = teamLeads.filter((lead) => lead.id !== id)
+    persistTeamLeads(next)
+  }
+
+  return (
+    <div className="team-board">
+      <h2>Moyens d'équipe</h2>
+      <section className="card">
+        <h3>Ajouter un chef d'équipe</h3>
+        <div className="team-form">
+          <label>
+            Nom d'équipe
+            <input
+              value={formState.teamName}
+              onChange={(event) =>
+                setFormState((prev) => ({ ...prev, teamName: event.target.value }))
+              }
+              placeholder="VPSP-1, PSA..."
+            />
+          </label>
+          <label>
+            Prénom
+            <input
+              value={formState.leaderFirstName}
+              onChange={(event) =>
+                setFormState((prev) => ({ ...prev, leaderFirstName: event.target.value }))
+              }
+              placeholder="Prénom"
+            />
+          </label>
+          <label>
+            Nom
+            <input
+              value={formState.leaderLastName}
+              onChange={(event) =>
+                setFormState((prev) => ({ ...prev, leaderLastName: event.target.value }))
+              }
+              placeholder="Nom"
+            />
+          </label>
+          <label>
+            Téléphone
+            <input
+              value={formState.phone}
+              onChange={(event) =>
+                setFormState((prev) => ({ ...prev, phone: event.target.value }))
+              }
+              placeholder="06 00 00 00 00"
+            />
+          </label>
+          <label>
+            Statut
+            <select
+              value={formState.status}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  status: event.target.value as TeamLeadStatus
+                }))
+              }
+            >
+              <option value="Disponible">Disponible</option>
+              <option value="En intervention">En intervention</option>
+              <option value="Indisponible">Indisponible</option>
+            </select>
+          </label>
+          <button type="button" onClick={addTeamLead}>
+            Ajouter
+          </button>
+        </div>
+      </section>
+      <section className="card">
+        <div className="team-summary">
+          <h3>Moyens disponibles</h3>
+          <span>{teamLeads.length} équipe(s)</span>
+        </div>
+        {teamLeads.length === 0 ? (
+          <p>Aucun chef d'équipe enregistré.</p>
+        ) : (
+          <div className="team-grid">
+            {teamLeads.map((lead) => {
+              const dialable = toDialableNumber(lead.phone)
+              return (
+                <div key={lead.id} className="team-card">
+                  <div className="team-card-header">
+                    <div>
+                      <strong>{lead.teamName}</strong>
+                      <p>
+                        {lead.leaderFirstName} {lead.leaderLastName}
+                      </p>
+                    </div>
+                    <span className={`team-status team-status-${lead.status.replace(' ', '-')}`}>
+                      {lead.status}
+                    </span>
+                  </div>
+                  <div className="team-card-body">
+                    <div className="team-card-row">
+                      <span>Téléphone</span>
+                      <strong>{formatFrenchNumber(lead.phone)}</strong>
+                    </div>
+                    <label>
+                      Statut
+                      <select
+                        value={lead.status}
+                        onChange={(event) =>
+                          updateStatus(lead.id, event.target.value as TeamLeadStatus)
+                        }
+                      >
+                        <option value="Disponible">Disponible</option>
+                        <option value="En intervention">En intervention</option>
+                        <option value="Indisponible">Indisponible</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="team-card-actions">
+                    {dialable ? (
+                      <a className="button-link" href={`tel:${dialable}`}>
+                        Appeler
+                      </a>
+                    ) : (
+                      <span className="button-link disabled">Appeler</span>
+                    )}
+                    <button type="button" className="button-danger" onClick={() => removeLead(lead.id)}>
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  )
 }
 
 const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
