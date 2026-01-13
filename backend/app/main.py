@@ -12,7 +12,7 @@ from alembic.config import Config
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, inspect, text
+from sqlalchemy import func, inspect, or_, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -204,6 +204,27 @@ def me(user: User = Depends(get_current_user)) -> MeResponse:
     return MeResponse.model_validate(user)
 
 
+def build_number_search_patterns(value: str) -> List[str]:
+    digits = "".join(char for char in value if char.isdigit())
+    if not digits:
+        return []
+    patterns = {digits}
+    trimmed = digits.lstrip("0")
+    if trimmed:
+        patterns.add(trimmed)
+        patterns.add(f"33{trimmed}")
+        patterns.add(f"0033{trimmed}")
+    if digits.startswith("33") and not digits.startswith("0033") and len(digits) > 2:
+        rest = digits[2:]
+        patterns.add(f"0{rest}")
+        patterns.add(f"0033{rest}")
+    if digits.startswith("0033") and len(digits) > 4:
+        rest = digits[4:]
+        patterns.add(f"0{rest}")
+        patterns.add(f"33{rest}")
+    return sorted(patterns, key=len, reverse=True)
+
+
 @app.get("/calls", response_model=List[CallRecordOut])
 def list_calls(
     page: int = Query(1, ge=1),
@@ -223,10 +244,20 @@ def list_calls(
     if missed is not None:
         query = query.filter(CallRecord.is_missed == missed)
     if number:
-        query = query.filter(
-            (CallRecord.calling_number.ilike(f"%{number}%"))
-            | (CallRecord.called_number.ilike(f"%{number}%"))
-        )
+        patterns = build_number_search_patterns(number)
+        if patterns:
+            normalized_calling = func.regexp_replace(CallRecord.calling_number, r"\D", "", "g")
+            normalized_called = func.regexp_replace(CallRecord.called_number, r"\D", "", "g")
+            conditions = []
+            for pattern in patterns:
+                conditions.append(normalized_calling.like(f"%{pattern}%"))
+                conditions.append(normalized_called.like(f"%{pattern}%"))
+            query = query.filter(or_(*conditions))
+        else:
+            query = query.filter(
+                (CallRecord.calling_number.ilike(f"%{number}%"))
+                | (CallRecord.called_number.ilike(f"%{number}%"))
+            )
     if start_date:
         query = query.filter(CallRecord.started_at >= parse_date_input(start_date))
     if end_date:
