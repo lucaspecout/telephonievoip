@@ -228,6 +228,33 @@ def build_number_search_patterns(value: str) -> List[str]:
     return sorted(patterns, key=len, reverse=True)
 
 
+def build_number_variants(value: Optional[str]) -> List[str]:
+    if not value:
+        return []
+    digits = "".join(char for char in value if char.isdigit())
+    if not digits:
+        return []
+    variants = set(build_number_search_patterns(digits))
+    variants.add(digits)
+    return sorted(variants, key=len, reverse=True)
+
+
+def build_team_lead_index(leads: List[TeamLead]) -> dict:
+    index: dict[str, TeamLead] = {}
+    for lead in leads:
+        for variant in build_number_variants(lead.phone):
+            index.setdefault(variant, lead)
+    return index
+
+
+def match_team_lead(number: Optional[str], index: dict) -> Optional[TeamLead]:
+    for variant in build_number_variants(number):
+        lead = index.get(variant)
+        if lead:
+            return lead
+    return None
+
+
 @app.get("/calls", response_model=List[CallRecordOut])
 def list_calls(
     page: int = Query(1, ge=1),
@@ -271,7 +298,29 @@ def list_calls(
             raise HTTPException(status_code=403, detail="Not authorized")
         return export_calls_csv(query)
     items = query.offset((page - 1) * page_size).limit(page_size).all()
-    return [CallRecordOut.model_validate(item) for item in items]
+    leads = db.query(TeamLead).all()
+    lead_index = build_team_lead_index(leads)
+    enriched_calls = []
+    for item in items:
+        calling_lead = match_team_lead(item.calling_number, lead_index)
+        called_lead = match_team_lead(item.called_number, lead_index)
+        payload = CallRecordOut.model_validate(item).model_dump()
+        if calling_lead:
+            payload.update(
+                {
+                    "calling_team_name": calling_lead.team_name,
+                    "calling_leader_first_name": calling_lead.leader_first_name,
+                }
+            )
+        if called_lead:
+            payload.update(
+                {
+                    "called_team_name": called_lead.team_name,
+                    "called_leader_first_name": called_lead.leader_first_name,
+                }
+            )
+        enriched_calls.append(CallRecordOut(**payload))
+    return enriched_calls
 
 
 def export_calls_csv(query):
