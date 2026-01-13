@@ -548,8 +548,12 @@ const TeamLeads = ({ token }: { token: string }) => {
     ws.onmessage = () => {
       loadTeamLeads()
     }
+    const intervalId = window.setInterval(() => {
+      loadTeamLeads()
+    }, AUTO_REFRESH_INTERVAL_MS)
     return () => {
       ws.close()
+      window.clearInterval(intervalId)
     }
   }, [loadTeamLeads])
 
