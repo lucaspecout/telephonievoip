@@ -38,29 +38,37 @@ const pages = {
   changePassword: 'Changer mot de passe'
 }
 
-const wsUrl = () => {
+const wsUrl = (token: string) => {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  return `${protocol}://${window.location.host}/ws`
+  return `${protocol}://${window.location.host}/ws?token=${encodeURIComponent(token)}`
 }
 
 const AUTO_REFRESH_INTERVAL_MS = 2000
 
 const App = () => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
+  const [token, setToken] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [page, setPage] = useState<keyof typeof pages>('dashboard')
   const [error, setError] = useState('')
+  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
     if (!token) {
       setUser(null)
+      setAuthReady(true)
       return
     }
+    setAuthReady(false)
     fetchMe(token)
       .then((me) => {
         setUser(me)
+        setAuthReady(true)
       })
-      .catch(() => setToken(null))
+      .catch(() => {
+        setUser(null)
+        setToken(null)
+        setAuthReady(true)
+      })
   }, [token])
 
   const isAdmin = user?.role === 'ADMIN'
@@ -72,7 +80,6 @@ const App = () => {
           setError('')
           try {
             const result = await login(username, password)
-            localStorage.setItem('token', result.access_token)
             setToken(result.access_token)
             setPage('dashboard')
           } catch (err) {
@@ -82,6 +89,10 @@ const App = () => {
         error={error}
       />
     )
+  }
+
+  if (!authReady || !user) {
+    return <div className="loading">Vérification de la session...</div>
   }
 
   return (
@@ -100,7 +111,7 @@ const App = () => {
           <span>{user?.username}</span>
           <button
             onClick={() => {
-              localStorage.removeItem('token')
+              setUser(null)
               setToken(null)
             }}
           >
@@ -256,7 +267,7 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
 
   useEffect(() => {
     reload()
-    const ws = new WebSocket(wsUrl())
+    const ws = new WebSocket(wsUrl(token))
     ws.onmessage = () => reload()
     const intervalId = window.setInterval(() => {
       reload()
@@ -548,7 +559,7 @@ const TeamLeads = ({ token }: { token: string }) => {
 
   useEffect(() => {
     loadTeamLeads()
-    const ws = new WebSocket(wsUrl())
+    const ws = new WebSocket(wsUrl(token))
     ws.onmessage = () => {
       loadTeamLeads()
     }
@@ -889,7 +900,7 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
   }, [load])
 
   useEffect(() => {
-    const ws = new WebSocket(wsUrl())
+    const ws = new WebSocket(wsUrl(token))
     ws.onmessage = () => load()
     const intervalId = window.setInterval(() => {
       load()
@@ -1124,7 +1135,7 @@ const OvhSettings = ({ token }: { token: string }) => {
   }, [])
 
   useEffect(() => {
-    const ws = new WebSocket(wsUrl())
+    const ws = new WebSocket(wsUrl(token))
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
