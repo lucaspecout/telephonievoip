@@ -568,6 +568,8 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db)) -
         user.role = data.role
     if data.must_change_password is not None:
         user.must_change_password = data.must_change_password
+    if data.password:
+        user.password_hash = auth_service.hash_password(data.password)
     db.commit()
     db.refresh(user)
     return UserOut.model_validate(user)
