@@ -145,11 +145,34 @@ const App = () => {
       <aside className="sidebar">
         <h1>Secours Calls</h1>
         <nav>
-          <button onClick={() => setPage('dashboard')}>Dashboard</button>
-          <button onClick={() => setPage('calls')}>Appels</button>
-          <button onClick={() => setPage('teams')}>Moyens d'équipe</button>
-          {isAdmin && <button onClick={() => setPage('users')}>Utilisateurs</button>}
-          {isAdmin && <button onClick={() => setPage('settings')}>Paramètres OVH</button>}
+          <button
+            className={page === 'dashboard' ? 'is-active' : ''}
+            onClick={() => setPage('dashboard')}
+          >
+            Dashboard
+          </button>
+          <button className={page === 'calls' ? 'is-active' : ''} onClick={() => setPage('calls')}>
+            Appels
+          </button>
+          <button className={page === 'teams' ? 'is-active' : ''} onClick={() => setPage('teams')}>
+            Moyens d'équipe
+          </button>
+          {isAdmin && (
+            <button
+              className={page === 'users' ? 'is-active' : ''}
+              onClick={() => setPage('users')}
+            >
+              Utilisateurs
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              className={page === 'settings' ? 'is-active' : ''}
+              onClick={() => setPage('settings')}
+            >
+              Paramètres OVH
+            </button>
+          )}
         </nav>
         <div className="sidebar-footer">
           <span>{user?.username}</span>
@@ -191,10 +214,6 @@ const Login = ({
       <div className="login-card">
         <div className="login-brand">
           <img src={protectionCivileLogo} alt="Protection Civile Isère" />
-          <div>
-            <span className="login-brand-title">Protection Civile</span>
-            <span className="login-brand-subtitle">Isère</span>
-          </div>
         </div>
         <div className="login-header">
           <h2>Connexion</h2>
@@ -357,7 +376,15 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
 
   return (
     <div>
-      <h2>Dashboard</h2>
+      <div className="page-header">
+        <div>
+          <h2>Dashboard</h2>
+          <p>Vue d'ensemble en temps réel des appels et performances.</p>
+        </div>
+        <button type="button" className="button-ghost" onClick={() => reload()}>
+          Rafraîchir
+        </button>
+      </div>
       <div className="kpi-section">
         <h3>Aujourd'hui</h3>
         <div className="kpi-grid">
@@ -410,44 +437,46 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
             Filtrer aujourd'hui
           </button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Direction</th>
-              <th>Appelant</th>
-              <th>Appelé</th>
-              <th>Durée</th>
-              <th>Statut</th>
-              <th>Rappeler</th>
-            </tr>
-          </thead>
-          <tbody>
-            {latestCalls.map((call) => (
-              <tr key={call.id}>
-                <td>{new Date(call.started_at).toLocaleString()}</td>
-                <td>{formatDirection(call.direction)}</td>
-                <td>{formatCallParty(call, 'calling')}</td>
-                <td>{formatCallParty(call, 'called')}</td>
-                <td>{call.duration}s</td>
-                <td>{formatCallStatus(call)}</td>
-                <td>
-                  {(() => {
-                    const callbackNumber = getCallbackNumber(call)
-                    const dialable = toDialableNumber(callbackNumber)
-                    return dialable ? (
-                      <a className="button-link" href={`tel:${dialable}`}>
-                        Rappeler
-                      </a>
-                    ) : (
-                      '—'
-                    )
-                  })()}
-                </td>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Direction</th>
+                <th>Appelant</th>
+                <th>Appelé</th>
+                <th>Durée</th>
+                <th>Statut</th>
+                <th>Rappeler</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {latestCalls.map((call) => (
+                <tr key={call.id}>
+                  <td>{new Date(call.started_at).toLocaleString()}</td>
+                  <td>{formatDirection(call.direction)}</td>
+                  <td>{formatCallParty(call, 'calling')}</td>
+                  <td>{formatCallParty(call, 'called')}</td>
+                  <td>{call.duration}s</td>
+                  <td>{formatCallStatus(call)}</td>
+                  <td>
+                    {(() => {
+                      const callbackNumber = getCallbackNumber(call)
+                      const dialable = toDialableNumber(callbackNumber)
+                      return dialable ? (
+                        <a className="button-link" href={`tel:${dialable}`}>
+                          Rappeler
+                        </a>
+                      ) : (
+                        '—'
+                      )
+                    })()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
       <section className="card">
         <h3>Infos utiles</h3>
@@ -973,68 +1002,80 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
 
   return (
     <div>
-      <h2>Appels</h2>
-      <div className="filters">
-        <input
-          placeholder="Numéro"
-          value={filters.number}
-          onChange={(e) => setFilters({ ...filters, number: e.target.value })}
-        />
-        <select
-          value={filters.direction}
-          onChange={(e) => setFilters({ ...filters, direction: e.target.value })}
-        >
-          <option value="">Direction</option>
-          <option value="INBOUND">Entrant</option>
-          <option value="OUTBOUND">Sortant</option>
-        </select>
-        <select
-          value={filters.missed}
-          onChange={(e) => setFilters({ ...filters, missed: e.target.value })}
-        >
-          <option value="">Manqués</option>
-          <option value="true">Oui</option>
-          <option value="false">Non</option>
-        </select>
-        <input
-          type="date"
-          value={filters.start_date}
-          onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-        />
-        <input
-          type="date"
-          value={filters.end_date}
-          onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-        />
-        <button onClick={() => load()}>Filtrer</button>
-        <button
-          type="button"
-          onClick={() => {
-            setFilters(initialFilters)
-            setPage(1)
-          }}
-        >
-          Réinitialiser
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const today = getTodayDate()
-            setFilters({ ...filters, start_date: today, end_date: today })
-            setPage(1)
-          }}
-        >
-          Aujourd'hui
-        </button>
+      <div className="page-header">
+        <div>
+          <h2>Appels</h2>
+          <p>Analyse détaillée des appels entrants et sortants.</p>
+        </div>
         {isAdmin && (
-          <button onClick={() => exportCallsCsv(token, filters)}>Export CSV</button>
+          <button className="button-ghost" onClick={() => exportCallsCsv(token, filters)}>
+            Export CSV
+          </button>
         )}
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Direction</th>
+      <section className="card filters-card">
+        <div className="filters">
+          <input
+            placeholder="Numéro"
+            value={filters.number}
+            onChange={(e) => setFilters({ ...filters, number: e.target.value })}
+          />
+          <select
+            value={filters.direction}
+            onChange={(e) => setFilters({ ...filters, direction: e.target.value })}
+          >
+            <option value="">Direction</option>
+            <option value="INBOUND">Entrant</option>
+            <option value="OUTBOUND">Sortant</option>
+          </select>
+          <select
+            value={filters.missed}
+            onChange={(e) => setFilters({ ...filters, missed: e.target.value })}
+          >
+            <option value="">Manqués</option>
+            <option value="true">Oui</option>
+            <option value="false">Non</option>
+          </select>
+          <input
+            type="date"
+            value={filters.start_date}
+            onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
+          />
+          <input
+            type="date"
+            value={filters.end_date}
+            onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
+          />
+          <button onClick={() => load()}>Filtrer</button>
+          <button
+            type="button"
+            className="button-ghost"
+            onClick={() => {
+              setFilters(initialFilters)
+              setPage(1)
+            }}
+          >
+            Réinitialiser
+          </button>
+          <button
+            type="button"
+            className="button-ghost"
+            onClick={() => {
+              const today = getTodayDate()
+              setFilters({ ...filters, start_date: today, end_date: today })
+              setPage(1)
+            }}
+          >
+            Aujourd'hui
+          </button>
+        </div>
+      </section>
+      <div className="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Direction</th>
             <th>Appelant</th>
             <th>Appelé</th>
               <th>Durée</th>
@@ -1070,6 +1111,7 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
             ))}
           </tbody>
         </table>
+      </div>
       <div className="pagination">
         <button onClick={() => setPage(Math.max(1, page - 1))}>Précédent</button>
         <span>Page {page}</span>
@@ -1095,42 +1137,50 @@ const Users = ({ token }: { token: string }) => {
 
   return (
     <div>
-      <h2>Utilisateurs</h2>
+      <div className="page-header">
+        <div>
+          <h2>Utilisateurs</h2>
+          <p>Gérez les comptes et les droits d'accès.</p>
+        </div>
+      </div>
       <div className="card">
         <h3>Créer un utilisateur</h3>
-        <input
-          placeholder="Nom d'utilisateur"
-          value={form.username}
-          onChange={(e) => setForm({ ...form, username: e.target.value })}
-        />
-        <input
-          type="password"
-          placeholder="Mot de passe"
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
-        <select
-          value={form.role}
-          onChange={(e) => setForm({ ...form, role: e.target.value })}
-        >
-          <option value="OPERATEUR">OPERATEUR</option>
-          <option value="ADMIN">ADMIN</option>
-        </select>
-        <button
-          onClick={async () => {
-            await createUser(token, form)
-            setForm({ username: '', password: '', role: 'OPERATEUR' })
-            load()
-          }}
-        >
-          Ajouter
-        </button>
+        <div className="form-grid">
+          <input
+            placeholder="Nom d'utilisateur"
+            value={form.username}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
+          />
+          <input
+            type="password"
+            placeholder="Mot de passe"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+          <select
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value })}
+          >
+            <option value="OPERATEUR">OPERATEUR</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+          <button
+            onClick={async () => {
+              await createUser(token, form)
+              setForm({ username: '', password: '', role: 'OPERATEUR' })
+              load()
+            }}
+          >
+            Ajouter
+          </button>
+        </div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Rôle</th>
+      <div className="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Rôle</th>
             <th>Changement MDP</th>
             <th>Nouveau MDP</th>
             <th>Action</th>
@@ -1177,7 +1227,8 @@ const Users = ({ token }: { token: string }) => {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   )
 }
@@ -1266,55 +1317,62 @@ const OvhSettings = ({ token }: { token: string }) => {
 
   return (
     <div>
-      <h2>Paramètres OVH</h2>
+      <div className="page-header">
+        <div>
+          <h2>Paramètres OVH</h2>
+          <p>Configurez l'accès aux services OVH et lancez la synchronisation.</p>
+        </div>
+      </div>
       <div className="card">
-        <label>
-          Billing account
-          <input
-            value={settings.billing_account || ''}
-            onChange={(e) => setSettings({ ...settings, billing_account: e.target.value })}
-          />
-        </label>
-        <label>
-          Service names (séparés par des virgules)
-          <input
-            value={settings.service_names || ''}
-            onChange={(e) => setSettings({ ...settings, service_names: e.target.value })}
-          />
-        </label>
-        <label>
-          Numéro admin (appelant sortant)
-          <input
-            placeholder="Ex: +33123456789"
-            value={settings.admin_phone_number || ''}
-            onChange={(e) =>
-              setSettings({ ...settings, admin_phone_number: e.target.value })
-            }
-          />
-          <small>Exemple attendu: +33612345678 (format international conseillé).</small>
-        </label>
-        <label>
-          App key
-          <input
-            value={settings.app_key || ''}
-            onChange={(e) => setSettings({ ...settings, app_key: e.target.value })}
-          />
-        </label>
-        <label>
-          App secret
-          <input
-            type="password"
-            value={settings.app_secret || ''}
-            onChange={(e) => setSettings({ ...settings, app_secret: e.target.value })}
-          />
-        </label>
-        <label>
-          Consumer key
-          <input
-            value={settings.consumer_key || ''}
-            onChange={(e) => setSettings({ ...settings, consumer_key: e.target.value })}
-          />
-        </label>
+        <div className="form-grid">
+          <label>
+            Billing account
+            <input
+              value={settings.billing_account || ''}
+              onChange={(e) => setSettings({ ...settings, billing_account: e.target.value })}
+            />
+          </label>
+          <label>
+            Service names (séparés par des virgules)
+            <input
+              value={settings.service_names || ''}
+              onChange={(e) => setSettings({ ...settings, service_names: e.target.value })}
+            />
+          </label>
+          <label>
+            Numéro admin (appelant sortant)
+            <input
+              placeholder="Ex: +33123456789"
+              value={settings.admin_phone_number || ''}
+              onChange={(e) =>
+                setSettings({ ...settings, admin_phone_number: e.target.value })
+              }
+            />
+            <small>Exemple attendu: +33612345678 (format international conseillé).</small>
+          </label>
+          <label>
+            App key
+            <input
+              value={settings.app_key || ''}
+              onChange={(e) => setSettings({ ...settings, app_key: e.target.value })}
+            />
+          </label>
+          <label>
+            App secret
+            <input
+              type="password"
+              value={settings.app_secret || ''}
+              onChange={(e) => setSettings({ ...settings, app_secret: e.target.value })}
+            />
+          </label>
+          <label>
+            Consumer key
+            <input
+              value={settings.consumer_key || ''}
+              onChange={(e) => setSettings({ ...settings, consumer_key: e.target.value })}
+            />
+          </label>
+        </div>
         <div className="row">
           <button
             onClick={async () => {
@@ -1326,6 +1384,7 @@ const OvhSettings = ({ token }: { token: string }) => {
             Enregistrer
           </button>
           <button
+            className="button-ghost"
             onClick={async () => {
               setMessage('')
               setErrorMessage('')
@@ -1346,6 +1405,7 @@ const OvhSettings = ({ token }: { token: string }) => {
         </div>
         <div className="row">
           <button
+            className={syncStatus === 'error' ? 'button-danger' : ''}
             onClick={async () => {
               setMessage('')
               setErrorMessage('')
@@ -1364,8 +1424,10 @@ const OvhSettings = ({ token }: { token: string }) => {
             {syncStatus === 'pending' ? 'Synchronisation en cours...' : 'Forcer la sync'}
           </button>
         </div>
-        <p>Dernière sync: {formatSyncTime(settings.last_sync_at)}</p>
-        <p>Erreurs récentes: {settings.last_error || '—'}</p>
+        <div className="status-stack">
+          <p>Dernière sync: {formatSyncTime(settings.last_sync_at)}</p>
+          <p>Erreurs récentes: {settings.last_error || '—'}</p>
+        </div>
         {message && <p className="success">{message}</p>}
         {errorMessage && <p className="error">{errorMessage}</p>}
         {testLogs.length > 0 && (
