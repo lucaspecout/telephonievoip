@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   changePassword,
   createUser,
-  debugSync,
   createTeamLead,
   deleteTeamLead,
   exportCallsCsv,
@@ -35,7 +34,6 @@ const pages = {
   teams: "Moyens d'équipe",
   users: 'Utilisateurs',
   settings: 'Paramètres OVH',
-  debug: 'Debug synchro',
   changePassword: 'Changer mot de passe'
 }
 
@@ -46,6 +44,20 @@ const wsUrl = (token: string) => {
 
 const AUTO_REFRESH_INTERVAL_MS = 2000
 const TOKEN_STORAGE_KEY = 'telephonievoip_token'
+const PAGE_STORAGE_KEY = 'telephonievoip_page'
+
+type PageKey = keyof typeof pages
+
+const getStoredPage = (): PageKey => {
+  if (typeof window === 'undefined') {
+    return 'dashboard'
+  }
+  const stored = window.localStorage.getItem(PAGE_STORAGE_KEY)
+  if (stored && stored in pages) {
+    return stored as PageKey
+  }
+  return 'dashboard'
+}
 
 const App = () => {
   const [token, setToken] = useState<string | null>(() => {
@@ -55,7 +67,7 @@ const App = () => {
     return window.localStorage.getItem(TOKEN_STORAGE_KEY)
   })
   const [user, setUser] = useState<User | null>(null)
-  const [page, setPage] = useState<keyof typeof pages>('dashboard')
+  const [page, setPage] = useState<PageKey>(() => getStoredPage())
   const [error, setError] = useState('')
   const [authReady, setAuthReady] = useState(false)
 
@@ -89,7 +101,23 @@ const App = () => {
     }
   }, [token])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    window.localStorage.setItem(PAGE_STORAGE_KEY, page)
+  }, [page])
+
   const isAdmin = user?.role === 'ADMIN'
+
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+    if (!isAdmin && (page === 'users' || page === 'settings')) {
+      setPage('dashboard')
+    }
+  }, [isAdmin, page, user])
 
   if (!token) {
     return (
@@ -99,7 +127,6 @@ const App = () => {
           try {
             const result = await login(username, password)
             setToken(result.access_token)
-            setPage('dashboard')
           } catch (err) {
             setError('Identifiants invalides')
           }
@@ -123,7 +150,6 @@ const App = () => {
           <button onClick={() => setPage('teams')}>Moyens d'équipe</button>
           {isAdmin && <button onClick={() => setPage('users')}>Utilisateurs</button>}
           {isAdmin && <button onClick={() => setPage('settings')}>Paramètres OVH</button>}
-          {isAdmin && <button onClick={() => setPage('debug')}>Debug synchro</button>}
         </nav>
         <div className="sidebar-footer">
           <span>{user?.username}</span>
@@ -143,7 +169,6 @@ const App = () => {
         {page === 'teams' && <TeamLeads token={token} />}
         {page === 'users' && isAdmin && <Users token={token} />}
         {page === 'settings' && isAdmin && <OvhSettings token={token} />}
-        {page === 'debug' && isAdmin && <SyncDebug token={token} />}
         {page === 'changePassword' && (
           <ChangePassword token={token} onDone={() => fetchMe(token).then(setUser)} />
         )}
@@ -1057,6 +1082,7 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
 const Users = ({ token }: { token: string }) => {
   const [users, setUsers] = useState<User[]>([])
   const [form, setForm] = useState({ username: '', password: '', role: 'OPERATEUR' })
+  const [passwords, setPasswords] = useState<Record<number, string>>({})
 
   const load = async () => {
     const data = await fetchUsers(token)
@@ -1106,6 +1132,8 @@ const Users = ({ token }: { token: string }) => {
             <th>Nom</th>
             <th>Rôle</th>
             <th>Changement MDP</th>
+            <th>Nouveau MDP</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -1122,6 +1150,29 @@ const Users = ({ token }: { token: string }) => {
                     load()
                   }}
                 />
+              </td>
+              <td>
+                <input
+                  type="password"
+                  placeholder="Nouveau mot de passe"
+                  value={passwords[user.id] || ''}
+                  onChange={(e) =>
+                    setPasswords((prev) => ({ ...prev, [user.id]: e.target.value }))
+                  }
+                />
+              </td>
+              <td>
+                <button
+                  type="button"
+                  disabled={!passwords[user.id]}
+                  onClick={async () => {
+                    await updateUser(token, user.id, { password: passwords[user.id] })
+                    setPasswords((prev) => ({ ...prev, [user.id]: '' }))
+                    load()
+                  }}
+                >
+                  Modifier MDP
+                </button>
               </td>
             </tr>
           ))}
@@ -1321,144 +1372,6 @@ const OvhSettings = ({ token }: { token: string }) => {
           <div className="log-block">
             <p>Logs de test:</p>
             <pre>{testLogs.join('\n')}</pre>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const SyncDebug = ({ token }: { token: string }) => {
-  const [days, setDays] = useState(7)
-  const [logs, setLogs] = useState<string[]>([])
-  const [summary, setSummary] = useState<any>(null)
-  const [status, setStatus] = useState<'idle' | 'running' | 'error'>('idle')
-  const [message, setMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [ovhStatus, setOvhStatus] = useState<{
-    last_sync_at?: string | null
-    last_error?: string | null
-  } | null>(null)
-  const [ovhStatusError, setOvhStatusError] = useState('')
-
-  const runDiagnostic = async (mode: 'dry_run' | 'force_sync') => {
-    setStatus('running')
-    setMessage('')
-    setErrorMessage('')
-    setLogs([])
-    setSummary(null)
-    try {
-      const result = await debugSync(token, { days, mode })
-      setSummary(result?.summary || null)
-      setLogs(result?.logs || [])
-      setMessage(
-        mode === 'force_sync'
-          ? 'Synchronisation poussée terminée.'
-          : 'Diagnostic terminé.'
-      )
-      setStatus('idle')
-    } catch (error) {
-      const err = error as Error & { logs?: string[] }
-      setErrorMessage(err.message || 'Erreur lors du diagnostic')
-      setLogs(err.logs || [])
-      setStatus('error')
-    }
-  }
-
-  const loadOvhStatus = useCallback(async () => {
-    try {
-      const result = await fetchOvhSettings(token)
-      setOvhStatus(result)
-      setOvhStatusError('')
-    } catch (error) {
-      setOvhStatus(null)
-      setOvhStatusError((error as Error).message || 'Impossible de charger le statut OVH.')
-    }
-  }, [token])
-
-  useEffect(() => {
-    loadOvhStatus()
-  }, [loadOvhStatus])
-
-  return (
-    <div>
-      <h2>Debug synchronisation</h2>
-      <section className="card">
-        <div className="card-header">
-          <h3>Statut OVH</h3>
-          <button type="button" onClick={loadOvhStatus}>
-            Actualiser
-          </button>
-        </div>
-        {ovhStatusError && <p className="error">{ovhStatusError}</p>}
-        <div className="status-grid">
-          <div className="status-item">
-            <span>Connexion</span>
-            <strong className={ovhStatus?.last_error ? 'status-bad' : 'status-good'}>
-              {ovhStatus?.last_error ? '⚠️ Erreur' : '✅ OK'}
-            </strong>
-          </div>
-          <div className="status-item">
-            <span>Dernière synchro</span>
-            <strong>
-              {ovhStatus?.last_sync_at
-                ? new Date(ovhStatus.last_sync_at).toLocaleString()
-                : '⏳ En attente'}
-            </strong>
-          </div>
-          <div className="status-item">
-            <span>Dernier message</span>
-            <strong className={ovhStatus?.last_error ? 'status-bad' : ''}>
-              {ovhStatus?.last_error ? `🧯 ${ovhStatus.last_error}` : 'Rien à signaler'}
-            </strong>
-          </div>
-        </div>
-      </section>
-      <div className="card">
-        <p>
-          Ce diagnostic vérifie la fenêtre de synchronisation, l'accès OVH et
-          les consommations détectées pour comprendre ce qui bloque.
-        </p>
-        <label>
-          Fenêtre d'analyse (jours)
-          <input
-            type="number"
-            min={1}
-            max={90}
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-          />
-        </label>
-        <div className="row">
-          <button onClick={() => runDiagnostic('dry_run')} disabled={status === 'running'}>
-            Lancer diagnostic
-          </button>
-          <button onClick={() => runDiagnostic('force_sync')} disabled={status === 'running'}>
-            Synchronisation poussée
-          </button>
-        </div>
-        {summary && (
-          <div className="debug-summary">
-            <p>Résumé:</p>
-            <ul>
-              <li>Période: {summary.range_start} → {summary.range_end}</li>
-              <li>Consommations: {summary.consumption_count ?? '—'}</li>
-              <li>Appels en base (fenêtre): {summary.db_count ?? '—'}</li>
-              <li>Manqués en base (fenêtre): {summary.db_missed_count ?? '—'}</li>
-              <li>Déjà en base: {summary.existing_count ?? '—'}</li>
-              <li>Nouveaux potentiels: {summary.new_count ?? '—'}</li>
-              {summary.sync_new_count !== undefined && (
-                <li>Nouveaux synchronisés: {summary.sync_new_count}</li>
-              )}
-            </ul>
-          </div>
-        )}
-        {message && <p className="success">{message}</p>}
-        {errorMessage && <p className="error">{errorMessage}</p>}
-        {logs.length > 0 && (
-          <div className="log-block">
-            <p>Logs de diagnostic:</p>
-            <pre>{logs.join('\n')}</pre>
           </div>
         )}
       </div>

@@ -30,6 +30,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     role: Optional[Role] = None
     must_change_password: Optional[bool] = None
+    password: Optional[str] = None
 
 
 class UserOut(BaseModel):

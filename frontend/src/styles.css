@@ -404,19 +404,6 @@ button {
   font-size: 12px;
 }
 
-.debug-summary {
-  margin-top: 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.debug-summary ul {
-  margin: 8px 0 0;
-  padding-left: 18px;
-}
-
 .team-board {
   display: flex;
   flex-direction: column;
