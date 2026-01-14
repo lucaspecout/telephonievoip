@@ -20,6 +20,7 @@ import {
   updateTeamLead,
   updateUser
 } from './api'
+import protectionCivileLogo from './assets/protection-civile-logo.svg'
 
 export type User = {
   id: number
@@ -161,35 +162,52 @@ const Login = ({
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   return (
-    <div className="login">
-      <h2>Connexion</h2>
-      <form
-        autoComplete="off"
-        onSubmit={(event) => {
-          event.preventDefault()
-          onLogin(username, password)
-        }}
-      >
-        <label>
-          Nom d'utilisateur
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <label>
-          Mot de passe
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-          />
-        </label>
-        {error && <p className="error">{error}</p>}
-        <button type="submit">Se connecter</button>
-      </form>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-brand">
+          <img src={protectionCivileLogo} alt="Protection Civile Isère" />
+          <div>
+            <span className="login-brand-title">Protection Civile</span>
+            <span className="login-brand-subtitle">Isère</span>
+          </div>
+        </div>
+        <div className="login-header">
+          <h2>Connexion</h2>
+          <p>Accédez à la plateforme de téléphonie d&apos;urgence.</p>
+        </div>
+        <form
+          autoComplete="off"
+          onSubmit={(event) => {
+            event.preventDefault()
+            onLogin(username, password)
+          }}
+        >
+          <label>
+            Nom d&apos;utilisateur
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="off"
+              placeholder="prenom.nom"
+            />
+          </label>
+          <label>
+            Mot de passe
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              placeholder="••••••••"
+            />
+          </label>
+          {error && <p className="error">{error}</p>}
+          <button type="submit">Se connecter</button>
+        </form>
+        <p className="login-help">
+          Besoin d&apos;aide ? Contactez le support régional.
+        </p>
+      </div>
     </div>
   )
 }
