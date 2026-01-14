@@ -136,6 +136,16 @@ td {
   gap: 12px;
 }
 
+.loading {
+  max-width: 320px;
+  margin: 120px auto;
+  padding: 20px 24px;
+  background: #fff;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 label {
   display: flex;
   flex-direction: column;

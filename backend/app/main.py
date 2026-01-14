@@ -10,6 +10,7 @@ import redis.asyncio as redis
 from alembic import command
 from alembic.config import Config
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from jose import JWTError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, inspect, or_, text
@@ -826,6 +827,27 @@ async def trigger_sync() -> dict:
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+    try:
+        payload = auth_service.decode_token(token)
+    except JWTError:
+        await websocket.close(code=1008)
+        return
+    username = payload.get("sub")
+    if not username:
+        await websocket.close(code=1008)
+        return
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            await websocket.close(code=1008)
+            return
+    finally:
+        db.close()
     await websocket.accept()
     pubsub = redis_client.pubsub() if redis_client else None
     if pubsub:
