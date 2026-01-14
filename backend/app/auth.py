@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
@@ -23,12 +23,19 @@ class AuthService:
         return argon2.verify(password, password_hash)
 
     def create_access_token(self, subject: str, role: str) -> str:
-        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-        to_encode = {"sub": subject, "role": role, "exp": expire}
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.access_token_expire_minutes
+        )
+        to_encode = {"sub": subject, "role": role, "exp": int(expire.timestamp())}
         return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
     def decode_token(self, token: str) -> dict:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        return jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_exp": True},
+        )
 
 
 auth_service = AuthService()
