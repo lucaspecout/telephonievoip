@@ -44,9 +44,15 @@ const wsUrl = (token: string) => {
 }
 
 const AUTO_REFRESH_INTERVAL_MS = 2000
+const TOKEN_STORAGE_KEY = 'telephonievoip_token'
 
 const App = () => {
-  const [token, setToken] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+    return window.localStorage.getItem(TOKEN_STORAGE_KEY)
+  })
   const [user, setUser] = useState<User | null>(null)
   const [page, setPage] = useState<keyof typeof pages>('dashboard')
   const [error, setError] = useState('')
@@ -69,6 +75,17 @@ const App = () => {
         setToken(null)
         setAuthReady(true)
       })
+  }, [token])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    if (token) {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, token)
+    } else {
+      window.localStorage.removeItem(TOKEN_STORAGE_KEY)
+    }
   }, [token])
 
   const isAdmin = user?.role === 'ADMIN'
