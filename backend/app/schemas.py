@@ -132,6 +132,7 @@ class TeamLeadOut(BaseModel):
     leader_last_name: str
     phone: Optional[str]
     status: str
+    intervention_started_at: Optional[datetime] = None
     category_id: Optional[int]
 
     class Config:
