@@ -819,6 +819,21 @@ button {
   border: 1px solid #e5e7eb;
 }
 
+.team-card-Disponible {
+  border-color: #86efac;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
+}
+
+.team-card-En-intervention {
+  border-color: #fcd34d;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.25);
+}
+
+.team-card-Indisponible {
+  border-color: #fca5a5;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.25);
+}
+
 .team-card-header {
   display: flex;
   align-items: flex-start;
@@ -914,6 +929,41 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.team-card-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-card-status select {
+  flex: 1;
+}
+
+.team-status-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.team-status-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: #d1d5db;
+}
+
+.team-status-icon-Disponible {
+  background: #22c55e;
+}
+
+.team-status-icon-En-intervention {
+  background: #f59e0b;
+}
+
+.team-status-icon-Indisponible {
+  background: #ef4444;
 }
 
 .team-card-row {
