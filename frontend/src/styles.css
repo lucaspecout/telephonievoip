@@ -589,6 +589,12 @@ button {
   gap: 10px;
 }
 
+.team-category-create {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .team-category-item {
   background: #ffffff;
   border-radius: 10px;

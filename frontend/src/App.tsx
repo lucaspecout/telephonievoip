@@ -676,6 +676,7 @@ const TeamLeads = ({ token }: { token: string }) => {
   const [categoryEdits, setCategoryEdits] = useState<Record<number, string>>({})
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showTeamFilters, setShowTeamFilters] = useState(true)
+  const [showCategoryCreator, setShowCategoryCreator] = useState(false)
 
   const loadTeamLeads = useCallback(async () => {
     try {
@@ -1125,6 +1126,27 @@ const TeamLeads = ({ token }: { token: string }) => {
               <h4>Catégories</h4>
               <span>{orderedCategories.length} active(s)</span>
             </div>
+            <div className="team-category-create">
+              <button
+                type="button"
+                className="button-ghost"
+                onClick={() => setShowCategoryCreator((prev) => !prev)}
+              >
+                {showCategoryCreator ? 'Masquer la création' : 'Créer une catégorie'}
+              </button>
+              {showCategoryCreator && (
+                <div className="team-category-add">
+                  <input
+                    value={newCategoryName}
+                    onChange={(event) => setNewCategoryName(event.target.value)}
+                    placeholder="Nouvelle catégorie"
+                  />
+                  <button type="button" onClick={createCategory}>
+                    Ajouter
+                  </button>
+                </div>
+              )}
+            </div>
             {categoryError && <p className="error">{categoryError}</p>}
             {orderedCategories.length === 0 ? (
               <p className="team-empty">Ajoutez une première catégorie pour organiser le Kanban.</p>
@@ -1170,16 +1192,6 @@ const TeamLeads = ({ token }: { token: string }) => {
                 })}
               </div>
             )}
-            <div className="team-category-add">
-              <input
-                value={newCategoryName}
-                onChange={(event) => setNewCategoryName(event.target.value)}
-                placeholder="Nouvelle catégorie"
-              />
-              <button type="button" onClick={createCategory}>
-                Ajouter
-              </button>
-            </div>
             <p className="team-hint">
               Glissez-déposez les cartes pour changer la catégorie en temps réel.
             </p>
