@@ -133,3 +133,22 @@ class TeamLeadOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TeamLeadCategoryIn(BaseModel):
+    name: str
+    position: Optional[int] = None
+
+
+class TeamLeadCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    position: Optional[int] = None
+
+
+class TeamLeadCategoryOut(BaseModel):
+    id: int
+    name: str
+    position: int
+
+    class Config:
+        from_attributes = True
