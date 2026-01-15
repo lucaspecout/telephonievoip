@@ -1213,10 +1213,6 @@ const TeamLeads = ({ token }: { token: string }) => {
                                   </span>
                                 </div>
                                 <div className="team-card-body">
-                                  <div className="team-card-row">
-                                    <span>Téléphone</span>
-                                    <strong>{formatFrenchNumber(lead.phone)}</strong>
-                                  </div>
                                   <label>
                                     Disponibilité
                                     <select
