@@ -541,9 +541,8 @@ async def update_team_lead_category(
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     updates = data.model_dump(exclude_unset=True)
-    old_name = category.name
     new_name = updates.get("name")
-    if new_name and new_name != old_name:
+    if new_name and new_name != category.name:
         duplicate = (
             db.query(TeamLeadCategory)
             .filter(TeamLeadCategory.name == new_name, TeamLeadCategory.id != category_id)
@@ -553,10 +552,6 @@ async def update_team_lead_category(
             raise HTTPException(status_code=400, detail="Category already exists")
     for field, value in updates.items():
         setattr(category, field, value)
-    if new_name and new_name != old_name:
-        db.query(TeamLead).filter(TeamLead.status == old_name).update(
-            {TeamLead.status: new_name}, synchronize_session=False
-        )
     db.commit()
     db.refresh(category)
     await publish_event({"type": "team_lead_categories_updated"})
@@ -571,7 +566,7 @@ async def delete_team_lead_category(
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     leads_with_category = (
-        db.query(TeamLead).filter(TeamLead.status == category.name).count()
+        db.query(TeamLead).filter(TeamLead.category_id == category.id).count()
     )
     if leads_with_category:
         raise HTTPException(
@@ -588,12 +583,19 @@ async def delete_team_lead_category(
 async def create_team_lead(
     data: TeamLeadIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> TeamLeadOut:
+    if data.category_id is not None:
+        category = (
+            db.query(TeamLeadCategory).filter(TeamLeadCategory.id == data.category_id).first()
+        )
+        if not category:
+            raise HTTPException(status_code=400, detail="Category not found")
     lead = TeamLead(
         team_name=data.team_name,
         leader_first_name=data.leader_first_name,
         leader_last_name=data.leader_last_name,
         phone=data.phone,
         status=data.status,
+        category_id=data.category_id,
     )
     db.add(lead)
     db.commit()
@@ -612,7 +614,16 @@ async def update_team_lead(
     lead = db.query(TeamLead).filter(TeamLead.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Team lead not found")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    if "category_id" in updates and updates["category_id"] is not None:
+        category = (
+            db.query(TeamLeadCategory)
+            .filter(TeamLeadCategory.id == updates["category_id"])
+            .first()
+        )
+        if not category:
+            raise HTTPException(status_code=400, detail="Category not found")
+    for field, value in updates.items():
         setattr(lead, field, value)
     db.commit()
     db.refresh(lead)
