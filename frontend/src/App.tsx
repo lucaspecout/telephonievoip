@@ -685,6 +685,14 @@ const formatElapsedTime = (elapsedMs: number) => {
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`
 }
 
+const normalizeUtcTimestamp = (value: string) => {
+  if (!value) return value
+  if (value.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(value)) {
+    return value
+  }
+  return `${value}Z`
+}
+
 const TeamLeads = ({ token }: { token: string }) => {
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([])
   const [categories, setCategories] = useState<TeamLeadCategory[]>([])
@@ -1255,7 +1263,7 @@ const TeamLeads = ({ token }: { token: string }) => {
                             const isInIntervention = lead.status === 'En intervention'
                             const startTimestamp = lead.interventionStartedAt
                             const startTime = startTimestamp
-                              ? new Date(startTimestamp).getTime()
+                              ? new Date(normalizeUtcTimestamp(startTimestamp)).getTime()
                               : 0
                             const elapsedLabel = startTimestamp
                               ? formatElapsedTime(now - startTime)
