@@ -589,12 +589,14 @@ async def create_team_lead(
         )
         if not category:
             raise HTTPException(status_code=400, detail="Category not found")
+    intervention_started_at = datetime.utcnow() if data.status == "En intervention" else None
     lead = TeamLead(
         team_name=data.team_name,
         leader_first_name=data.leader_first_name,
         leader_last_name=data.leader_last_name,
         phone=data.phone,
         status=data.status,
+        intervention_started_at=intervention_started_at,
         category_id=data.category_id,
     )
     db.add(lead)
@@ -623,6 +625,13 @@ async def update_team_lead(
         )
         if not category:
             raise HTTPException(status_code=400, detail="Category not found")
+    if "status" in updates:
+        next_status = updates["status"]
+        if next_status == "En intervention":
+            if lead.status != "En intervention" or not lead.intervention_started_at:
+                lead.intervention_started_at = datetime.utcnow()
+        else:
+            lead.intervention_started_at = None
     for field, value in updates.items():
         setattr(lead, field, value)
     db.commit()
