@@ -714,6 +714,7 @@ const TeamLeads = ({ token }: { token: string }) => {
   const [categoryEdits, setCategoryEdits] = useState<Record<number, string>>({})
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showTeamFilters, setShowTeamFilters] = useState(true)
+  const [showTeamManagement, setShowTeamManagement] = useState(false)
   const [showCategoryManagement, setShowCategoryManagement] = useState(false)
   const [showCategoryCreator, setShowCategoryCreator] = useState(false)
   const [interventionCounts, setInterventionCounts] = useState<Record<number, number>>(() => {
@@ -1000,17 +1001,22 @@ const TeamLeads = ({ token }: { token: string }) => {
           <h2>Moyens d'équipe</h2>
           <p className="team-subtitle">Suivi rapide des équipes et disponibilité en temps réel.</p>
         </div>
-        <div className="team-kpis">
-          <div className="team-kpi">
-            <span>Total</span>
-            <strong>{categoryCounts.total}</strong>
-          </div>
-          {categoryColumns.map((category) => (
-            <div key={category.key} className="team-kpi team-kpi-neutral">
-              <span>{category.name}</span>
-              <strong>{categoryCounts[category.key] || 0}</strong>
+        <div className="team-header-actions">
+          <div className="team-kpis">
+            <div className="team-kpi">
+              <span>Total</span>
+              <strong>{categoryCounts.total}</strong>
             </div>
-          ))}
+            {categoryColumns.map((category) => (
+              <div key={category.key} className="team-kpi team-kpi-neutral">
+                <span>{category.name}</span>
+                <strong>{categoryCounts[category.key] || 0}</strong>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="button-ghost" onClick={() => setShowTeamManagement(true)}>
+            Gérer les chefs d'équipe
+          </button>
         </div>
       </div>
       {loadError && <p className="error">{loadError}</p>}
@@ -1296,13 +1302,31 @@ const TeamLeads = ({ token }: { token: string }) => {
                                       {lead.leaderFirstName} {lead.leaderLastName}
                                     </p>
                                   </div>
-                                  <span
-                                    className={`team-status ${
-                                      leadStatusClass ? `team-status-${leadStatusClass}` : ''
-                                    }`}
-                                  >
-                                    {lead.status}
-                                  </span>
+                                  <div className="team-card-header-actions">
+                                    {dialable ? (
+                                      <a
+                                        className="team-phone-icon"
+                                        href={`tel:${dialable}`}
+                                        aria-label={`Appeler ${lead.leaderFirstName} ${lead.leaderLastName}`}
+                                      >
+                                        📞
+                                      </a>
+                                    ) : (
+                                      <span
+                                        className="team-phone-icon team-phone-icon--disabled"
+                                        aria-hidden="true"
+                                      >
+                                        📞
+                                      </span>
+                                    )}
+                                    <span
+                                      className={`team-status ${
+                                        leadStatusClass ? `team-status-${leadStatusClass}` : ''
+                                      }`}
+                                    >
+                                      {lead.status}
+                                    </span>
+                                  </div>
                                 </div>
                                 <div className="team-card-body">
                                   <label>
@@ -1372,22 +1396,6 @@ const TeamLeads = ({ token }: { token: string }) => {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="team-card-actions">
-                                  {dialable ? (
-                                    <a className="button-link" href={`tel:${dialable}`}>
-                                      Appeler
-                                    </a>
-                                  ) : (
-                                    <span className="button-link disabled">Appeler</span>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className="button-danger"
-                                    onClick={() => removeLead(lead.id)}
-                                  >
-                                    Supprimer
-                                  </button>
-                                </div>
                               </div>
                             )
                           })
@@ -1400,6 +1408,68 @@ const TeamLeads = ({ token }: { token: string }) => {
             )}
           </div>
         </div>
+        {showTeamManagement && (
+          <div
+            className="team-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setShowTeamManagement(false)}
+          >
+            <div className="team-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="team-modal-header">
+                <div className="team-modal-title">
+                  <h4>Chefs d'équipe</h4>
+                  <span>{teamLeads.length} enregistré(s)</span>
+                </div>
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => setShowTeamManagement(false)}
+                >
+                  Fermer
+                </button>
+              </div>
+              {teamLeads.length === 0 ? (
+                <p className="team-empty">Aucun chef d'équipe enregistré.</p>
+              ) : (
+                <div className="team-lead-list">
+                  {teamLeads.map((lead) => {
+                    const dialable = toDialableNumber(lead.phone)
+                    return (
+                      <div key={lead.id} className="team-lead-item">
+                        <div className="team-lead-info">
+                          <strong>{lead.teamName}</strong>
+                          <span>
+                            {lead.leaderFirstName} {lead.leaderLastName}
+                          </span>
+                          <span className="team-lead-meta">
+                            {lead.phone || 'Numéro non renseigné'}
+                          </span>
+                        </div>
+                        <div className="team-lead-actions">
+                          {dialable ? (
+                            <a className="button-link" href={`tel:${dialable}`}>
+                              📞
+                            </a>
+                          ) : (
+                            <span className="button-link disabled">📞</span>
+                          )}
+                          <button
+                            type="button"
+                            className="button-danger"
+                            onClick={() => removeLead(lead.id)}
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {showCategoryManagement && (
           <div
             className="team-modal-backdrop"
