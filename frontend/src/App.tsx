@@ -654,6 +654,36 @@ const knownStatusClasses: Record<string, string> = {
 }
 
 const baseStatusOptions = ['Disponible', 'En intervention', 'Indisponible']
+const interventionStartStorageKey = 'teamLeadInterventionStart'
+const interventionCountStorageKey = 'teamLeadInterventionCount'
+
+const readStoredRecord = <T extends Record<string, unknown>>(key: string): T => {
+  if (typeof window === 'undefined') {
+    return {} as T
+  }
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return {} as T
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') {
+      return parsed as T
+    }
+  } catch (error) {
+    return {} as T
+  }
+  return {} as T
+}
+
+const formatElapsedTime = (elapsedMs: number) => {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, '0')}m`
+  }
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`
+}
 
 const TeamLeads = ({ token }: { token: string }) => {
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([])
@@ -678,6 +708,27 @@ const TeamLeads = ({ token }: { token: string }) => {
   const [showTeamFilters, setShowTeamFilters] = useState(true)
   const [showCategoryManagement, setShowCategoryManagement] = useState(false)
   const [showCategoryCreator, setShowCategoryCreator] = useState(false)
+  const [interventionStarts, setInterventionStarts] = useState<Record<number, string>>(() => {
+    const stored = readStoredRecord<Record<string, string>>(interventionStartStorageKey)
+    return Object.entries(stored).reduce<Record<number, string>>((acc, [key, value]) => {
+      const id = Number(key)
+      if (!Number.isNaN(id) && typeof value === 'string') {
+        acc[id] = value
+      }
+      return acc
+    }, {})
+  })
+  const [interventionCounts, setInterventionCounts] = useState<Record<number, number>>(() => {
+    const stored = readStoredRecord<Record<string, number>>(interventionCountStorageKey)
+    return Object.entries(stored).reduce<Record<number, number>>((acc, [key, value]) => {
+      const id = Number(key)
+      if (!Number.isNaN(id) && typeof value === 'number') {
+        acc[id] = value
+      }
+      return acc
+    }, {})
+  })
+  const [now, setNow] = useState(() => Date.now())
 
   const loadTeamLeads = useCallback(async () => {
     try {
@@ -738,6 +789,53 @@ const TeamLeads = ({ token }: { token: string }) => {
       window.clearInterval(intervalId)
     }
   }, [loadCategories, loadTeamLeads])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      interventionStartStorageKey,
+      JSON.stringify(interventionStarts)
+    )
+  }, [interventionStarts])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      interventionCountStorageKey,
+      JSON.stringify(interventionCounts)
+    )
+  }, [interventionCounts])
+
+  useEffect(() => {
+    setInterventionStarts((prev) => {
+      let changed = false
+      const next = { ...prev }
+      if (teamLeads.length === 0) {
+        return Object.keys(next).length ? {} : prev
+      }
+      const leadMap = new Map(teamLeads.map((lead) => [lead.id, lead]))
+      teamLeads.forEach((lead) => {
+        if (lead.status === 'En intervention' && !next[lead.id]) {
+          next[lead.id] = new Date().toISOString()
+          changed = true
+        }
+      })
+      Object.keys(next).forEach((key) => {
+        const id = Number(key)
+        const lead = leadMap.get(id)
+        if (!lead || lead.status !== 'En intervention') {
+          delete next[id]
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [teamLeads])
 
   useEffect(() => {
     if (!categories.length) {
@@ -809,6 +907,18 @@ const TeamLeads = ({ token }: { token: string }) => {
   const removeLead = async (id: number) => {
     await deleteTeamLead(token, id)
     setTeamLeads((prev) => prev.filter((lead) => lead.id !== id))
+    setInterventionStarts((prev) => {
+      if (!prev[id]) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    setInterventionCounts((prev) => {
+      if (prev[id] === undefined) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
   }
 
   const createCategory = async () => {
@@ -1177,6 +1287,15 @@ const TeamLeads = ({ token }: { token: string }) => {
                           columnLeads.map((lead) => {
                             const dialable = toDialableNumber(lead.phone)
                             const leadStatusClass = knownStatusClasses[lead.status]
+                            const isInIntervention = lead.status === 'En intervention'
+                            const startTimestamp = interventionStarts[lead.id]
+                            const startTime = startTimestamp
+                              ? new Date(startTimestamp).getTime()
+                              : 0
+                            const elapsedLabel = startTimestamp
+                              ? formatElapsedTime(now - startTime)
+                              : '—'
+                            const interventionCount = interventionCounts[lead.id] ?? 0
                             return (
                               <div
                                 key={lead.id}
@@ -1231,6 +1350,54 @@ const TeamLeads = ({ token }: { token: string }) => {
                                       ))}
                                     </select>
                                   </label>
+                                  <div className="team-card-metrics">
+                                    <div className="team-card-metric">
+                                      <span>Chrono</span>
+                                      <strong>{isInIntervention ? elapsedLabel : '—'}</strong>
+                                      {!isInIntervention && (
+                                        <small className="team-card-metric-sub">
+                                          Hors intervention
+                                        </small>
+                                      )}
+                                    </div>
+                                    <div className="team-card-metric team-card-counter">
+                                      <span>Interventions</span>
+                                      <div className="team-counter-controls">
+                                        <button
+                                          type="button"
+                                          className="team-counter-button"
+                                          onClick={() =>
+                                            setInterventionCounts((prev) => ({
+                                              ...prev,
+                                              [lead.id]: Math.max(
+                                                0,
+                                                (prev[lead.id] ?? 0) - 1
+                                              )
+                                            }))
+                                          }
+                                          aria-label="Diminuer le compteur d'intervention"
+                                        >
+                                          −
+                                        </button>
+                                        <span className="team-counter-value">
+                                          {interventionCount}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className="team-counter-button"
+                                          onClick={() =>
+                                            setInterventionCounts((prev) => ({
+                                              ...prev,
+                                              [lead.id]: (prev[lead.id] ?? 0) + 1
+                                            }))
+                                          }
+                                          aria-label="Augmenter le compteur d'intervention"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                                 <div className="team-card-actions">
                                   {dialable ? (

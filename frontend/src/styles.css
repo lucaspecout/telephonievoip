@@ -740,8 +740,8 @@ button {
 .team-column-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px;
   min-height: 120px;
 }
 
@@ -763,10 +763,10 @@ button {
 .team-card {
   background: #f9fafb;
   border-radius: 12px;
-  padding: 12px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid #e5e7eb;
 }
 
@@ -780,12 +780,17 @@ button {
 .team-card-header p {
   margin: 4px 0 0;
   color: #4b5563;
+  font-size: 12px;
 }
 
 .team-card-title {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.team-card-title strong {
+  font-size: 14px;
 }
 
 .team-status-dot {
@@ -809,9 +814,9 @@ button {
 }
 
 .team-status {
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
   background: #f3f4f6;
@@ -836,7 +841,7 @@ button {
 .team-card-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .team-card-row {
@@ -849,6 +854,66 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.team-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px;
+  border: 1px dashed #e5e7eb;
+}
+
+.team-card-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.team-card-metric strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.team-card-metric-sub {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.team-card-counter {
+  gap: 6px;
+}
+
+.team-counter-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.team-counter-button {
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  color: #111827;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.team-counter-button:hover {
+  background: #e5e7eb;
+}
+
+.team-counter-value {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 600;
+  color: #111827;
 }
 
 @media (max-width: 900px) {
