@@ -1014,9 +1014,6 @@ const TeamLeads = ({ token }: { token: string }) => {
               </div>
             ))}
           </div>
-          <button type="button" className="button-ghost" onClick={() => setShowTeamManagement(true)}>
-            Gérer les chefs d'équipe
-          </button>
         </div>
       </div>
       {loadError && <p className="error">{loadError}</p>}
@@ -1140,6 +1137,13 @@ const TeamLeads = ({ token }: { token: string }) => {
               onClick={() => setShowCategoryManagement(true)}
             >
               Gérer les catégories
+            </button>
+            <button
+              type="button"
+              className="button-ghost"
+              onClick={() => setShowTeamManagement(true)}
+            >
+              Gérer les chefs d'équipe
             </button>
             <button
               type="button"
@@ -1278,7 +1282,9 @@ const TeamLeads = ({ token }: { token: string }) => {
                             return (
                               <div
                                 key={lead.id}
-                                className="team-card"
+                                className={`team-card ${
+                                  leadStatusClass ? `team-card-${leadStatusClass}` : ''
+                                }`}
                                 draggable
                                 onDragStart={(event) => {
                                   event.dataTransfer.setData('text/plain', String(lead.id))
@@ -1329,9 +1335,14 @@ const TeamLeads = ({ token }: { token: string }) => {
                                   </div>
                                 </div>
                                 <div className="team-card-body">
-                                  <label>
-                                    Disponibilité
+                                  <div className="team-card-status">
+                                    <div className="team-status-legend" aria-hidden="true">
+                                      <span className="team-status-icon team-status-icon-Disponible" />
+                                      <span className="team-status-icon team-status-icon-En-intervention" />
+                                      <span className="team-status-icon team-status-icon-Indisponible" />
+                                    </div>
                                     <select
+                                      aria-label="Disponibilité"
                                       value={lead.status}
                                       onChange={(event) =>
                                         updateStatus(
@@ -1346,7 +1357,7 @@ const TeamLeads = ({ token }: { token: string }) => {
                                         </option>
                                       ))}
                                     </select>
-                                  </label>
+                                  </div>
                                   <div className="team-card-metrics">
                                     <div className="team-card-metric">
                                       <span>Chrono</span>
