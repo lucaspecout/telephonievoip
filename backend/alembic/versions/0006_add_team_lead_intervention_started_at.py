@@ -1,7 +1,7 @@
 """add intervention started at to team leads
 
-Revision ID: 0006_add_team_lead_intervention_started_at
-Revises: 0005_add_team_lead_category_id
+Revision ID: 0006
+Revises: 0005
 Create Date: 2025-09-03 00:00:00.000000
 """
 
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0006_add_team_lead_intervention_started_at"
-down_revision = "0005_add_team_lead_category_id"
+revision = "0006"
+down_revision = "0005"
 branch_labels = None
 depends_on = None
 
