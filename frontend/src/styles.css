@@ -644,7 +644,9 @@ button {
 .team-columns {
   display: flex;
   gap: 12px;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  align-items: stretch;
+  overflow-x: visible;
   padding-bottom: 6px;
 }
 
@@ -655,7 +657,7 @@ button {
   min-width: 240px;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 260px;
 }
 
 .team-column-header {
