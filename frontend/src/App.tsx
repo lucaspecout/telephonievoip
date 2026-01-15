@@ -676,6 +676,7 @@ const TeamLeads = ({ token }: { token: string }) => {
   const [categoryEdits, setCategoryEdits] = useState<Record<number, string>>({})
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showTeamFilters, setShowTeamFilters] = useState(true)
+  const [showCategoryManagement, setShowCategoryManagement] = useState(false)
   const [showCategoryCreator, setShowCategoryCreator] = useState(false)
 
   const loadTeamLeads = useCallback(async () => {
@@ -1047,6 +1048,15 @@ const TeamLeads = ({ token }: { token: string }) => {
             <button
               type="button"
               className="button-ghost"
+              onClick={() => setShowCategoryManagement((prev) => !prev)}
+            >
+              {showCategoryManagement
+                ? 'Masquer la gestion des catégories'
+                : 'Afficher la gestion des catégories'}
+            </button>
+            <button
+              type="button"
+              className="button-ghost"
               onClick={() => {
                 setSearchTerm('')
                 setStatusFilter('')
@@ -1120,82 +1130,86 @@ const TeamLeads = ({ token }: { token: string }) => {
             </label>
           </div>
         )}
-        <div className="team-kanban">
-          <aside className="team-kanban-sidebar">
-            <div className="team-kanban-title">
-              <h4>Catégories</h4>
-              <span>{orderedCategories.length} active(s)</span>
-            </div>
-            <div className="team-category-create">
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => setShowCategoryCreator((prev) => !prev)}
-              >
-                {showCategoryCreator ? 'Masquer la création' : 'Créer une catégorie'}
-              </button>
-              {showCategoryCreator && (
-                <div className="team-category-add">
-                  <input
-                    value={newCategoryName}
-                    onChange={(event) => setNewCategoryName(event.target.value)}
-                    placeholder="Nouvelle catégorie"
-                  />
-                  <button type="button" onClick={createCategory}>
-                    Ajouter
-                  </button>
-                </div>
-              )}
-            </div>
-            {categoryError && <p className="error">{categoryError}</p>}
-            {orderedCategories.length === 0 ? (
-              <p className="team-empty">Ajoutez une première catégorie pour organiser le Kanban.</p>
-            ) : (
-              <div className="team-category-list">
-                {orderedCategories.map((category) => {
-                  const count = categoryCounts[String(category.id)] || 0
-                  return (
-                    <div key={category.id} className="team-category-item">
-                      <input
-                        value={categoryEdits[category.id] ?? category.name}
-                        onChange={(event) =>
-                          setCategoryEdits((prev) => ({
-                            ...prev,
-                            [category.id]: event.target.value
-                          }))
-                        }
-                      />
-                      <div className="team-category-meta">
-                        <span>{count} chef(s)</span>
-                        <div className="team-category-actions">
-                          <button
-                            type="button"
-                            onClick={() => saveCategory(category)}
-                            disabled={
-                              !categoryEdits[category.id] ||
-                              categoryEdits[category.id].trim() === category.name
-                            }
-                          >
-                            Enregistrer
-                          </button>
-                          <button
-                            type="button"
-                            className="button-danger"
-                            onClick={() => removeCategory(category)}
-                          >
-                            Supprimer
-                          </button>
+        <div className={`team-kanban ${showCategoryManagement ? '' : 'team-kanban--full'}`}>
+          {showCategoryManagement && (
+            <aside className="team-kanban-sidebar">
+              <div className="team-kanban-title">
+                <h4>Catégories</h4>
+                <span>{orderedCategories.length} active(s)</span>
+              </div>
+              <div className="team-category-create">
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => setShowCategoryCreator((prev) => !prev)}
+                >
+                  {showCategoryCreator ? 'Masquer la création' : 'Créer une catégorie'}
+                </button>
+                {showCategoryCreator && (
+                  <div className="team-category-add">
+                    <input
+                      value={newCategoryName}
+                      onChange={(event) => setNewCategoryName(event.target.value)}
+                      placeholder="Nouvelle catégorie"
+                    />
+                    <button type="button" onClick={createCategory}>
+                      Ajouter
+                    </button>
+                  </div>
+                )}
+              </div>
+              {categoryError && <p className="error">{categoryError}</p>}
+              {orderedCategories.length === 0 ? (
+                <p className="team-empty">
+                  Ajoutez une première catégorie pour organiser le Kanban.
+                </p>
+              ) : (
+                <div className="team-category-list">
+                  {orderedCategories.map((category) => {
+                    const count = categoryCounts[String(category.id)] || 0
+                    return (
+                      <div key={category.id} className="team-category-item">
+                        <input
+                          value={categoryEdits[category.id] ?? category.name}
+                          onChange={(event) =>
+                            setCategoryEdits((prev) => ({
+                              ...prev,
+                              [category.id]: event.target.value
+                            }))
+                          }
+                        />
+                        <div className="team-category-meta">
+                          <span>{count} chef(s)</span>
+                          <div className="team-category-actions">
+                            <button
+                              type="button"
+                              onClick={() => saveCategory(category)}
+                              disabled={
+                                !categoryEdits[category.id] ||
+                                categoryEdits[category.id].trim() === category.name
+                              }
+                            >
+                              Enregistrer
+                            </button>
+                            <button
+                              type="button"
+                              className="button-danger"
+                              onClick={() => removeCategory(category)}
+                            >
+                              Supprimer
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            <p className="team-hint">
-              Glissez-déposez les cartes pour changer la catégorie en temps réel.
-            </p>
-          </aside>
+                    )
+                  })}
+                </div>
+              )}
+              <p className="team-hint">
+                Glissez-déposez les cartes pour changer la catégorie en temps réel.
+              </p>
+            </aside>
+          )}
           <div className="team-kanban-board">
             {teamLeads.length === 0 && (
               <p className="team-empty-banner">Aucun chef d'équipe enregistré.</p>
