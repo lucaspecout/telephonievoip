@@ -561,6 +561,10 @@ button {
   align-items: start;
 }
 
+.team-kanban--full {
+  grid-template-columns: 1fr;
+}
+
 .team-kanban-sidebar {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
