@@ -477,6 +477,11 @@ button {
   border-color: #fecaca;
 }
 
+.team-kpi-neutral {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
 .team-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -522,6 +527,154 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
+}
+
+.team-kanban {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.team-kanban-sidebar {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.team-kanban-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.team-kanban-title h4 {
+  margin: 0;
+}
+
+.team-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.team-category-item {
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.team-category-item input {
+  width: 100%;
+}
+
+.team-category-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.team-category-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.team-category-add {
+  display: flex;
+  gap: 8px;
+}
+
+.team-category-add input {
+  flex: 1;
+}
+
+.team-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.team-kanban-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.team-columns {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.team-column {
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.team-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.team-column-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-column-title h4 {
+  margin: 0;
+}
+
+.team-column-count {
+  font-weight: 600;
+  color: #374151;
+}
+
+.team-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  min-height: 120px;
+}
+
+.team-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.team-empty-banner {
+  margin: 0;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  color: #4b5563;
+  font-size: 13px;
 }
 
 .team-card {
@@ -578,6 +731,8 @@ button {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .team-status-Disponible {
@@ -611,6 +766,12 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .team-kanban {
+    grid-template-columns: 1fr;
+  }
 }
 
 .button-ghost {

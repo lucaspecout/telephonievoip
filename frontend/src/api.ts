@@ -196,6 +196,45 @@ export const fetchTeamLeads = async (token: string) => {
   return response.json()
 }
 
+export const fetchTeamLeadCategories = async (token: string) => {
+  const response = await fetch(`${API_BASE}/team-lead-categories`, { headers: headers(token) })
+  if (!response.ok) throw new Error('Team lead categories failed')
+  return response.json()
+}
+
+export const createTeamLeadCategory = async (token: string, payload: any) => {
+  const response = await fetch(`${API_BASE}/team-lead-categories`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Team lead category create failed')
+  return response.json()
+}
+
+export const updateTeamLeadCategory = async (
+  token: string,
+  categoryId: number,
+  payload: any
+) => {
+  const response = await fetch(`${API_BASE}/team-lead-categories/${categoryId}`, {
+    method: 'PATCH',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Team lead category update failed')
+  return response.json()
+}
+
+export const deleteTeamLeadCategory = async (token: string, categoryId: number) => {
+  const response = await fetch(`${API_BASE}/team-lead-categories/${categoryId}`, {
+    method: 'DELETE',
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('Team lead category delete failed')
+  return response.json()
+}
+
 export const createTeamLead = async (token: string, payload: any) => {
   const response = await fetch(`${API_BASE}/team-leads`, {
     method: 'POST',

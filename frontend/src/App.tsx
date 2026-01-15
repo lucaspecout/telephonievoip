@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   changePassword,
+  createTeamLeadCategory,
   createUser,
   createTeamLead,
+  deleteTeamLeadCategory,
   deleteTeamLead,
   exportCallsCsv,
   fetchCalls,
   fetchDashboardSummary,
   fetchDashboardHourly,
+  fetchTeamLeadCategories,
   fetchTeamLeads,
   fetchMe,
   fetchOvhSettings,
@@ -16,6 +19,7 @@ import {
   saveOvhSettings,
   testOvhSettings,
   triggerSync,
+  updateTeamLeadCategory,
   updateTeamLead,
   updateUser
 } from './api'
@@ -602,7 +606,7 @@ const formatCallStatus = (call: any) => {
   return <span className="badge badge-neutral">✅ Répondu</span>
 }
 
-type TeamLeadStatus = 'Disponible' | 'En intervention' | 'Indisponible'
+type TeamLeadStatus = string
 
 type TeamLead = {
   id: number
@@ -613,9 +617,23 @@ type TeamLead = {
   status: TeamLeadStatus
 }
 
+type TeamLeadCategory = {
+  id: number
+  name: string
+  position: number
+}
+
+const knownStatusClasses: Record<string, string> = {
+  Disponible: 'Disponible',
+  'En intervention': 'En-intervention',
+  Indisponible: 'Indisponible'
+}
+
 const TeamLeads = ({ token }: { token: string }) => {
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([])
+  const [categories, setCategories] = useState<TeamLeadCategory[]>([])
   const [loadError, setLoadError] = useState('')
+  const [categoryError, setCategoryError] = useState('')
   const [formState, setFormState] = useState({
     teamName: '',
     teamEmoji: '',
@@ -627,6 +645,8 @@ const TeamLeads = ({ token }: { token: string }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<TeamLeadStatus | ''>('')
   const [teamFilter, setTeamFilter] = useState('')
+  const [categoryEdits, setCategoryEdits] = useState<Record<number, string>>({})
+  const [newCategoryName, setNewCategoryName] = useState('')
 
   const loadTeamLeads = useCallback(async () => {
     try {
@@ -646,20 +666,54 @@ const TeamLeads = ({ token }: { token: string }) => {
     }
   }, [token])
 
+  const loadCategories = useCallback(async () => {
+    try {
+      const data = await fetchTeamLeadCategories(token)
+      const mapped = data.map((category: any) => ({
+        id: category.id,
+        name: category.name,
+        position: category.position
+      }))
+      setCategories(mapped)
+      setCategoryEdits((prev) =>
+        mapped.reduce((acc: Record<number, string>, category: TeamLeadCategory) => {
+          const current = prev[category.id]
+          acc[category.id] =
+            current !== undefined && current.trim() !== category.name ? current : category.name
+          return acc
+        }, {})
+      )
+      setCategoryError('')
+    } catch (error) {
+      setCategoryError('Impossible de charger les catégories.')
+    }
+  }, [token])
+
   useEffect(() => {
     loadTeamLeads()
+    loadCategories()
     const ws = new WebSocket(wsUrl(token))
     ws.onmessage = () => {
       loadTeamLeads()
+      loadCategories()
     }
     const intervalId = window.setInterval(() => {
       loadTeamLeads()
+      loadCategories()
     }, AUTO_REFRESH_INTERVAL_MS)
     return () => {
       ws.close()
       window.clearInterval(intervalId)
     }
-  }, [loadTeamLeads])
+  }, [loadCategories, loadTeamLeads])
+
+  useEffect(() => {
+    if (!categories.length) return
+    const categoryNames = categories.map((category) => category.name)
+    if (!categoryNames.includes(formState.status)) {
+      setFormState((prev) => ({ ...prev, status: categoryNames[0] }))
+    }
+  }, [categories, formState.status])
 
   const addTeamLead = async () => {
     if (!formState.teamName || !formState.leaderFirstName || !formState.leaderLastName) return
@@ -706,6 +760,48 @@ const TeamLeads = ({ token }: { token: string }) => {
     setTeamLeads((prev) => prev.filter((lead) => lead.id !== id))
   }
 
+  const createCategory = async () => {
+    const trimmed = newCategoryName.trim()
+    if (!trimmed) return
+    try {
+      await createTeamLeadCategory(token, { name: trimmed })
+      setNewCategoryName('')
+      loadCategories()
+    } catch (error) {
+      setCategoryError("Impossible d'ajouter la catégorie.")
+    }
+  }
+
+  const saveCategory = async (category: TeamLeadCategory) => {
+    const nextName = categoryEdits[category.id]?.trim()
+    if (!nextName || nextName === category.name) return
+    try {
+      await updateTeamLeadCategory(token, category.id, { name: nextName })
+      loadCategories()
+      loadTeamLeads()
+    } catch (error) {
+      setCategoryError("Impossible de mettre à jour la catégorie.")
+    }
+  }
+
+  const removeCategory = async (category: TeamLeadCategory) => {
+    if (!window.confirm(`Supprimer la catégorie "${category.name}" ?`)) return
+    try {
+      await deleteTeamLeadCategory(token, category.id)
+      loadCategories()
+    } catch (error) {
+      setCategoryError("Impossible de supprimer la catégorie.")
+    }
+  }
+
+  const orderedCategories = [...categories].sort((a, b) => a.position - b.position)
+  const fallbackCategories = Array.from(
+    new Set(teamLeads.map((lead) => lead.status).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, 'fr'))
+  const categoryNames = orderedCategories.length
+    ? orderedCategories.map((category) => category.name)
+    : fallbackCategories
+
   const normalizedSearch = searchTerm.trim().toLowerCase()
   const filteredLeads = teamLeads.filter((lead) => {
     if (statusFilter && lead.status !== statusFilter) return false
@@ -728,16 +824,21 @@ const TeamLeads = ({ token }: { token: string }) => {
   const statusCounts = teamLeads.reduce(
     (acc, lead) => {
       acc.total += 1
-      acc[lead.status] += 1
+      acc[lead.status] = (acc[lead.status] || 0) + 1
       return acc
     },
-    {
-      total: 0,
-      Disponible: 0,
-      'En intervention': 0,
-      Indisponible: 0
-    } as Record<TeamLeadStatus | 'total', number>
+    { total: 0 } as Record<TeamLeadStatus | 'total', number>
   )
+  const statusOptions = categoryNames.length ? categoryNames : ['Disponible']
+  const visibleCategoryNames = statusFilter
+    ? categoryNames.filter((name) => name === statusFilter)
+    : categoryNames
+  const getCategoryTone = (name: string) => {
+    if (name === 'Disponible') return 'team-kpi-success'
+    if (name === 'En intervention') return 'team-kpi-warning'
+    if (name === 'Indisponible') return 'team-kpi-danger'
+    return 'team-kpi-neutral'
+  }
 
   return (
     <div className="team-board">
@@ -751,18 +852,12 @@ const TeamLeads = ({ token }: { token: string }) => {
             <span>Total</span>
             <strong>{statusCounts.total}</strong>
           </div>
-          <div className="team-kpi team-kpi-success">
-            <span>Disponible</span>
-            <strong>{statusCounts.Disponible}</strong>
-          </div>
-          <div className="team-kpi team-kpi-warning">
-            <span>En intervention</span>
-            <strong>{statusCounts['En intervention']}</strong>
-          </div>
-          <div className="team-kpi team-kpi-danger">
-            <span>Indisponible</span>
-            <strong>{statusCounts.Indisponible}</strong>
-          </div>
+          {categoryNames.map((category) => (
+            <div key={category} className={`team-kpi ${getCategoryTone(category)}`}>
+              <span>{category}</span>
+              <strong>{statusCounts[category] || 0}</strong>
+            </div>
+          ))}
         </div>
       </div>
       {loadError && <p className="error">{loadError}</p>}
@@ -835,9 +930,11 @@ const TeamLeads = ({ token }: { token: string }) => {
                 }))
               }
             >
-              <option value="Disponible">Disponible</option>
-              <option value="En intervention">En intervention</option>
-              <option value="Indisponible">Indisponible</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
             </select>
           </label>
           <button type="button" onClick={addTeamLead}>
@@ -879,9 +976,11 @@ const TeamLeads = ({ token }: { token: string }) => {
               onChange={(event) => setStatusFilter(event.target.value as TeamLeadStatus | '')}
             >
               <option value="">Tous</option>
-              <option value="Disponible">Disponible</option>
-              <option value="En intervention">En intervention</option>
-              <option value="Indisponible">Indisponible</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -896,72 +995,206 @@ const TeamLeads = ({ token }: { token: string }) => {
             </select>
           </label>
         </div>
-        {teamLeads.length === 0 ? (
-          <p>Aucun chef d'équipe enregistré.</p>
-        ) : filteredLeads.length === 0 ? (
-          <p>Aucun résultat avec ces filtres.</p>
-        ) : (
-          <div className="team-grid">
-            {filteredLeads.map((lead) => {
-              const dialable = toDialableNumber(lead.phone)
-              return (
-                <div key={lead.id} className="team-card">
-                  <div className="team-card-header">
-                    <div>
-                      <div className="team-card-title">
-                        <span
-                          className={`team-status-dot team-status-dot-${lead.status.replace(
-                            ' ',
-                            '-'
-                          )}`}
-                          aria-hidden="true"
-                        />
-                        <strong>{lead.teamName}</strong>
-                      </div>
-                      <p>
-                        {lead.leaderFirstName} {lead.leaderLastName}
-                      </p>
-                    </div>
-                    <span className={`team-status team-status-${lead.status.replace(' ', '-')}`}>
-                      {lead.status}
-                    </span>
-                  </div>
-                  <div className="team-card-body">
-                    <div className="team-card-row">
-                      <span>Téléphone</span>
-                      <strong>{formatFrenchNumber(lead.phone)}</strong>
-                    </div>
-                    <label>
-                      Statut
-                      <select
-                        value={lead.status}
+        <div className="team-kanban">
+          <aside className="team-kanban-sidebar">
+            <div className="team-kanban-title">
+              <h4>Catégories</h4>
+              <span>{orderedCategories.length} active(s)</span>
+            </div>
+            {categoryError && <p className="error">{categoryError}</p>}
+            {orderedCategories.length === 0 ? (
+              <p className="team-empty">Ajoutez une première catégorie pour organiser le Kanban.</p>
+            ) : (
+              <div className="team-category-list">
+                {orderedCategories.map((category) => {
+                  const count = statusCounts[category.name] || 0
+                  return (
+                    <div key={category.id} className="team-category-item">
+                      <input
+                        value={categoryEdits[category.id] ?? category.name}
                         onChange={(event) =>
-                          updateStatus(lead.id, event.target.value as TeamLeadStatus)
+                          setCategoryEdits((prev) => ({
+                            ...prev,
+                            [category.id]: event.target.value
+                          }))
                         }
-                      >
-                        <option value="Disponible">Disponible</option>
-                        <option value="En intervention">En intervention</option>
-                        <option value="Indisponible">Indisponible</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div className="team-card-actions">
-                    {dialable ? (
-                      <a className="button-link" href={`tel:${dialable}`}>
-                        Appeler
-                      </a>
-                    ) : (
-                      <span className="button-link disabled">Appeler</span>
-                    )}
-                    <button type="button" className="button-danger" onClick={() => removeLead(lead.id)}>
-                      Supprimer
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+                      />
+                      <div className="team-category-meta">
+                        <span>{count} chef(s)</span>
+                        <div className="team-category-actions">
+                          <button
+                            type="button"
+                            onClick={() => saveCategory(category)}
+                            disabled={
+                              !categoryEdits[category.id] ||
+                              categoryEdits[category.id].trim() === category.name
+                            }
+                          >
+                            Enregistrer
+                          </button>
+                          <button
+                            type="button"
+                            className="button-danger"
+                            onClick={() => removeCategory(category)}
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div className="team-category-add">
+              <input
+                value={newCategoryName}
+                onChange={(event) => setNewCategoryName(event.target.value)}
+                placeholder="Nouvelle catégorie"
+              />
+              <button type="button" onClick={createCategory}>
+                Ajouter
+              </button>
+            </div>
+            <p className="team-hint">
+              Glissez-déposez les cartes pour changer la catégorie en temps réel.
+            </p>
+          </aside>
+          <div className="team-kanban-board">
+            {teamLeads.length === 0 && (
+              <p className="team-empty-banner">Aucun chef d'équipe enregistré.</p>
+            )}
+            {teamLeads.length > 0 && filteredLeads.length === 0 && (
+              <p className="team-empty-banner">Aucun résultat avec ces filtres.</p>
+            )}
+            {categoryNames.length === 0 ? (
+              <p className="team-empty-banner">Ajoutez une catégorie pour activer le Kanban.</p>
+            ) : (
+              <div className="team-columns">
+                {visibleCategoryNames.map((categoryName) => {
+                  const columnLeads = filteredLeads.filter(
+                    (lead) => lead.status === categoryName
+                  )
+                  const statusClass = knownStatusClasses[categoryName]
+                  return (
+                    <div
+                      key={categoryName}
+                      className="team-column"
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        const id = Number(event.dataTransfer.getData('text/plain'))
+                        if (id) {
+                          updateStatus(id, categoryName)
+                        }
+                      }}
+                    >
+                      <div className="team-column-header">
+                        <div className="team-column-title">
+                          <span
+                            className={`team-status-dot ${
+                              statusClass ? `team-status-dot-${statusClass}` : ''
+                            }`}
+                            aria-hidden="true"
+                          />
+                          <h4>{categoryName}</h4>
+                        </div>
+                        <span className="team-column-count">{columnLeads.length}</span>
+                      </div>
+                      <div className="team-column-body">
+                        {columnLeads.length === 0 ? (
+                          <p className="team-empty">Aucun chef dans cette colonne.</p>
+                        ) : (
+                          columnLeads.map((lead) => {
+                            const dialable = toDialableNumber(lead.phone)
+                            const leadStatusClass = knownStatusClasses[lead.status]
+                            return (
+                              <div
+                                key={lead.id}
+                                className="team-card"
+                                draggable
+                                onDragStart={(event) => {
+                                  event.dataTransfer.setData('text/plain', String(lead.id))
+                                  event.dataTransfer.effectAllowed = 'move'
+                                }}
+                              >
+                                <div className="team-card-header">
+                                  <div>
+                                    <div className="team-card-title">
+                                      <span
+                                        className={`team-status-dot ${
+                                          leadStatusClass
+                                            ? `team-status-dot-${leadStatusClass}`
+                                            : ''
+                                        }`}
+                                        aria-hidden="true"
+                                      />
+                                      <strong>{lead.teamName}</strong>
+                                    </div>
+                                    <p>
+                                      {lead.leaderFirstName} {lead.leaderLastName}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className={`team-status ${
+                                      leadStatusClass ? `team-status-${leadStatusClass}` : ''
+                                    }`}
+                                  >
+                                    {lead.status}
+                                  </span>
+                                </div>
+                                <div className="team-card-body">
+                                  <div className="team-card-row">
+                                    <span>Téléphone</span>
+                                    <strong>{formatFrenchNumber(lead.phone)}</strong>
+                                  </div>
+                                  <label>
+                                    Statut
+                                    <select
+                                      value={lead.status}
+                                      onChange={(event) =>
+                                        updateStatus(
+                                          lead.id,
+                                          event.target.value as TeamLeadStatus
+                                        )
+                                      }
+                                    >
+                                      {statusOptions.map((status) => (
+                                        <option key={status} value={status}>
+                                          {status}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                                <div className="team-card-actions">
+                                  {dialable ? (
+                                    <a className="button-link" href={`tel:${dialable}`}>
+                                      Appeler
+                                    </a>
+                                  ) : (
+                                    <span className="button-link disabled">Appeler</span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="button-danger"
+                                    onClick={() => removeLead(lead.id)}
+                                  >
+                                    Supprimer
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </section>
     </div>
   )

@@ -20,7 +20,15 @@ from sqlalchemy.orm import Session
 from app.auth import auth_service, get_current_user, require_role
 from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db
-from app.models import CallRecord, Role, User, OvhSettings, CallDirection, TeamLead
+from app.models import (
+    CallRecord,
+    Role,
+    User,
+    OvhSettings,
+    CallDirection,
+    TeamLead,
+    TeamLeadCategory,
+)
 from app.schemas import (
     CallRecordOut,
     ChangePasswordRequest,
@@ -31,6 +39,9 @@ from app.schemas import (
     OvhSettingsIn,
     OvhSettingsOut,
     TeamLeadIn,
+    TeamLeadCategoryIn,
+    TeamLeadCategoryOut,
+    TeamLeadCategoryUpdate,
     TeamLeadOut,
     TeamLeadUpdate,
     TimeseriesPoint,
@@ -483,6 +494,94 @@ def list_team_leads(
 ) -> List[TeamLeadOut]:
     leads = db.query(TeamLead).order_by(TeamLead.team_name, TeamLead.leader_last_name).all()
     return [TeamLeadOut.model_validate(lead) for lead in leads]
+
+
+@app.get("/team-lead-categories", response_model=List[TeamLeadCategoryOut])
+def list_team_lead_categories(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> List[TeamLeadCategoryOut]:
+    categories = (
+        db.query(TeamLeadCategory)
+        .order_by(TeamLeadCategory.position, TeamLeadCategory.name)
+        .all()
+    )
+    return [TeamLeadCategoryOut.model_validate(category) for category in categories]
+
+
+@app.post("/team-lead-categories", response_model=TeamLeadCategoryOut)
+async def create_team_lead_category(
+    data: TeamLeadCategoryIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> TeamLeadCategoryOut:
+    existing = (
+        db.query(TeamLeadCategory).filter(TeamLeadCategory.name == data.name).first()
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="Category already exists")
+    if data.position is None:
+        max_position = db.query(func.max(TeamLeadCategory.position)).scalar()
+        position = (max_position or 0) + 1
+    else:
+        position = data.position
+    category = TeamLeadCategory(name=data.name, position=position)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    await publish_event({"type": "team_lead_categories_updated"})
+    return TeamLeadCategoryOut.model_validate(category)
+
+
+@app.patch("/team-lead-categories/{category_id}", response_model=TeamLeadCategoryOut)
+async def update_team_lead_category(
+    category_id: int,
+    data: TeamLeadCategoryUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TeamLeadCategoryOut:
+    category = db.query(TeamLeadCategory).filter(TeamLeadCategory.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    updates = data.model_dump(exclude_unset=True)
+    old_name = category.name
+    new_name = updates.get("name")
+    if new_name and new_name != old_name:
+        duplicate = (
+            db.query(TeamLeadCategory)
+            .filter(TeamLeadCategory.name == new_name, TeamLeadCategory.id != category_id)
+            .first()
+        )
+        if duplicate:
+            raise HTTPException(status_code=400, detail="Category already exists")
+    for field, value in updates.items():
+        setattr(category, field, value)
+    if new_name and new_name != old_name:
+        db.query(TeamLead).filter(TeamLead.status == old_name).update(
+            {TeamLead.status: new_name}, synchronize_session=False
+        )
+    db.commit()
+    db.refresh(category)
+    await publish_event({"type": "team_lead_categories_updated"})
+    return TeamLeadCategoryOut.model_validate(category)
+
+
+@app.delete("/team-lead-categories/{category_id}")
+async def delete_team_lead_category(
+    category_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
+    category = db.query(TeamLeadCategory).filter(TeamLeadCategory.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    leads_with_category = (
+        db.query(TeamLead).filter(TeamLead.status == category.name).count()
+    )
+    if leads_with_category:
+        raise HTTPException(
+            status_code=400,
+            detail="Impossible de supprimer une catégorie utilisée par un chef d'équipe.",
+        )
+    db.delete(category)
+    db.commit()
+    await publish_event({"type": "team_lead_categories_updated"})
+    return {"status": "deleted"}
 
 
 @app.post("/team-leads", response_model=TeamLeadOut)

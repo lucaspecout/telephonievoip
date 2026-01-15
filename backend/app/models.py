@@ -85,3 +85,19 @@ class TeamLead(Base):
         onupdate=datetime.utcnow,
         nullable=False,
     )
+
+
+class TeamLeadCategory(Base):
+    __tablename__ = "team_lead_categories"
+    __table_args__ = (UniqueConstraint("name"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(64), nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
