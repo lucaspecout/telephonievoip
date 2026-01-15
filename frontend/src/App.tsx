@@ -638,6 +638,7 @@ type TeamLead = {
   leaderLastName: string
   phone: string
   status: TeamLeadStatus
+  interventionStartedAt: string | null
   categoryId: number | null
 }
 
@@ -654,7 +655,6 @@ const knownStatusClasses: Record<string, string> = {
 }
 
 const baseStatusOptions = ['Disponible', 'En intervention', 'Indisponible']
-const interventionStartStorageKey = 'teamLeadInterventionStart'
 const interventionCountStorageKey = 'teamLeadInterventionCount'
 
 const readStoredRecord = <T extends Record<string, unknown>>(key: string): T => {
@@ -708,16 +708,6 @@ const TeamLeads = ({ token }: { token: string }) => {
   const [showTeamFilters, setShowTeamFilters] = useState(true)
   const [showCategoryManagement, setShowCategoryManagement] = useState(false)
   const [showCategoryCreator, setShowCategoryCreator] = useState(false)
-  const [interventionStarts, setInterventionStarts] = useState<Record<number, string>>(() => {
-    const stored = readStoredRecord<Record<string, string>>(interventionStartStorageKey)
-    return Object.entries(stored).reduce<Record<number, string>>((acc, [key, value]) => {
-      const id = Number(key)
-      if (!Number.isNaN(id) && typeof value === 'string') {
-        acc[id] = value
-      }
-      return acc
-    }, {})
-  })
   const [interventionCounts, setInterventionCounts] = useState<Record<number, number>>(() => {
     const stored = readStoredRecord<Record<string, number>>(interventionCountStorageKey)
     return Object.entries(stored).reduce<Record<number, number>>((acc, [key, value]) => {
@@ -740,6 +730,7 @@ const TeamLeads = ({ token }: { token: string }) => {
         leaderLastName: lead.leader_last_name,
         phone: lead.phone ?? '',
         status: lead.status as TeamLeadStatus,
+        interventionStartedAt: lead.intervention_started_at ?? null,
         categoryId: lead.category_id ?? null
       }))
       setTeamLeads(mapped)
@@ -799,43 +790,10 @@ const TeamLeads = ({ token }: { token: string }) => {
 
   useEffect(() => {
     window.localStorage.setItem(
-      interventionStartStorageKey,
-      JSON.stringify(interventionStarts)
-    )
-  }, [interventionStarts])
-
-  useEffect(() => {
-    window.localStorage.setItem(
       interventionCountStorageKey,
       JSON.stringify(interventionCounts)
     )
   }, [interventionCounts])
-
-  useEffect(() => {
-    setInterventionStarts((prev) => {
-      let changed = false
-      const next = { ...prev }
-      if (teamLeads.length === 0) {
-        return Object.keys(next).length ? {} : prev
-      }
-      const leadMap = new Map(teamLeads.map((lead) => [lead.id, lead]))
-      teamLeads.forEach((lead) => {
-        if (lead.status === 'En intervention' && !next[lead.id]) {
-          next[lead.id] = new Date().toISOString()
-          changed = true
-        }
-      })
-      Object.keys(next).forEach((key) => {
-        const id = Number(key)
-        const lead = leadMap.get(id)
-        if (!lead || lead.status !== 'En intervention') {
-          delete next[id]
-          changed = true
-        }
-      })
-      return changed ? next : prev
-    })
-  }, [teamLeads])
 
   useEffect(() => {
     if (!categories.length) {
@@ -871,6 +829,7 @@ const TeamLeads = ({ token }: { token: string }) => {
         leaderLastName: created.leader_last_name,
         phone: created.phone ?? '',
         status: created.status,
+        interventionStartedAt: created.intervention_started_at ?? null,
         categoryId: created.category_id ?? null
       },
       ...prev
@@ -889,7 +848,15 @@ const TeamLeads = ({ token }: { token: string }) => {
   const updateStatus = async (id: number, status: TeamLeadStatus) => {
     const updated = await updateTeamLead(token, id, { status })
     setTeamLeads((prev) =>
-      prev.map((lead) => (lead.id === id ? { ...lead, status: updated.status } : lead))
+      prev.map((lead) =>
+        lead.id === id
+          ? {
+              ...lead,
+              status: updated.status,
+              interventionStartedAt: updated.intervention_started_at ?? null
+            }
+          : lead
+      )
     )
   }
 
@@ -898,7 +865,11 @@ const TeamLeads = ({ token }: { token: string }) => {
     setTeamLeads((prev) =>
       prev.map((lead) =>
         lead.id === id
-          ? { ...lead, categoryId: updated.category_id ?? null }
+          ? {
+              ...lead,
+              categoryId: updated.category_id ?? null,
+              interventionStartedAt: updated.intervention_started_at ?? null
+            }
           : lead
       )
     )
@@ -907,12 +878,6 @@ const TeamLeads = ({ token }: { token: string }) => {
   const removeLead = async (id: number) => {
     await deleteTeamLead(token, id)
     setTeamLeads((prev) => prev.filter((lead) => lead.id !== id))
-    setInterventionStarts((prev) => {
-      if (!prev[id]) return prev
-      const next = { ...prev }
-      delete next[id]
-      return next
-    })
     setInterventionCounts((prev) => {
       if (prev[id] === undefined) return prev
       const next = { ...prev }
@@ -1288,7 +1253,7 @@ const TeamLeads = ({ token }: { token: string }) => {
                             const dialable = toDialableNumber(lead.phone)
                             const leadStatusClass = knownStatusClasses[lead.status]
                             const isInIntervention = lead.status === 'En intervention'
-                            const startTimestamp = interventionStarts[lead.id]
+                            const startTimestamp = lead.interventionStartedAt
                             const startTime = startTimestamp
                               ? new Date(startTimestamp).getTime()
                               : 0
