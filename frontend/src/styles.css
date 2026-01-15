@@ -23,6 +23,19 @@ body {
   flex-direction: column;
   gap: 16px;
   box-shadow: 8px 0 24px rgba(15, 23, 42, 0.12);
+  transition: width 0.2s ease, padding 0.2s ease;
+}
+
+.app.sidebar-collapsed .sidebar {
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.app.sidebar-collapsed .sidebar * {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar h1 {
@@ -68,6 +81,12 @@ main {
   flex: 1;
   padding: 32px;
   background: linear-gradient(180deg, #f8fafc 0%, #eef2f6 100%);
+}
+
+.layout-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
 }
 
 .card {
@@ -498,6 +517,12 @@ button {
   flex-wrap: wrap;
 }
 
+.team-summary-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .team-controls {
   display: grid;
   grid-template-columns: minmax(220px, 1.4fr) repeat(auto-fit, minmax(160px, 1fr));
@@ -790,6 +815,12 @@ button {
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 20px;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .page-header h2 {

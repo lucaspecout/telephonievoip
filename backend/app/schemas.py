@@ -113,6 +113,7 @@ class TeamLeadIn(BaseModel):
     leader_last_name: str
     phone: Optional[str] = None
     status: str
+    category_id: Optional[int] = None
 
 
 class TeamLeadUpdate(BaseModel):
@@ -121,6 +122,7 @@ class TeamLeadUpdate(BaseModel):
     leader_last_name: Optional[str] = None
     phone: Optional[str] = None
     status: Optional[str] = None
+    category_id: Optional[int] = None
 
 
 class TeamLeadOut(BaseModel):
@@ -130,6 +132,7 @@ class TeamLeadOut(BaseModel):
     leader_last_name: str
     phone: Optional[str]
     status: str
+    category_id: Optional[int]
 
     class Config:
         from_attributes = True

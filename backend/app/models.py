@@ -78,6 +78,7 @@ class TeamLead(Base):
     leader_last_name = Column(String(120), nullable=False)
     phone = Column(String(64), nullable=True)
     status = Column(String(32), nullable=False, default="Disponible")
+    category_id = Column(Integer, ForeignKey("team_lead_categories.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime,
