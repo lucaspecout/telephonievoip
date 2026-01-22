@@ -53,6 +53,11 @@ const SIDEBAR_STORAGE_KEY = 'telephonievoip_sidebar_collapsed'
 
 type PageKey = keyof typeof pages
 
+const parseApiDate = (value: string) => {
+  const hasTimezone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
+  return new Date(hasTimezone ? value : `${value}Z`)
+}
+
 const getStoredPage = (): PageKey => {
   if (typeof window === 'undefined') {
     return 'dashboard'
@@ -480,7 +485,7 @@ const Dashboard = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
             <tbody>
               {latestCalls.map((call) => (
                 <tr key={call.id}>
-                  <td>{new Date(call.started_at).toLocaleString()}</td>
+                  <td>{parseApiDate(call.started_at).toLocaleString()}</td>
                   <td>{formatDirection(call.direction)}</td>
                   <td>{formatCallParty(call, 'calling')}</td>
                   <td>{formatCallParty(call, 'called')}</td>
@@ -1713,7 +1718,7 @@ const Calls = ({ token, isAdmin }: { token: string; isAdmin: boolean }) => {
           <tbody>
             {calls.map((call) => (
               <tr key={call.id}>
-                <td>{new Date(call.started_at).toLocaleString()}</td>
+                <td>{parseApiDate(call.started_at).toLocaleString()}</td>
                 <td>{formatDirection(call.direction)}</td>
                 <td>{formatCallParty(call, 'calling')}</td>
                 <td>{formatCallParty(call, 'called')}</td>
@@ -1870,7 +1875,7 @@ const OvhSettings = ({ token }: { token: string }) => {
 
   const formatSyncTime = (value?: string | null) => {
     if (!value) return '—'
-    const parsed = new Date(value)
+    const parsed = parseApiDate(value)
     if (Number.isNaN(parsed.getTime())) return value
     return parsed.toLocaleString()
   }
