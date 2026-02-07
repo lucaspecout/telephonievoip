@@ -13,7 +13,7 @@ services:
       - db
       - redis
   db:
-    image: postgres:15
+    image: postgres:latest
     environment:
       POSTGRES_USER: telephonie
       POSTGRES_PASSWORD: telephonie
@@ -21,6 +21,6 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
   redis:
-    image: redis:7
+    image: redis:latest
 volumes:
   db_data:
