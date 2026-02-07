@@ -13,7 +13,7 @@ services:
       - db
       - redis
   db:
-    image: postgres:latest
+    image: postgres:15
     environment:
       POSTGRES_USER: telephonie
       POSTGRES_PASSWORD: telephonie
