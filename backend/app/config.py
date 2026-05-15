@@ -31,7 +31,6 @@ class Settings:
         self.ldap_bind_dn = get_env(
             "LDAP_BIND_DN", "uid=admin,ou=people,dc=apc38,dc=local"
         )
-        self.ldap_bind_password = get_env("LDAP_BIND_PASSWORD")
         self.ldap_user_base_dn = get_env(
             "LDAP_USER_BASE_DN", "ou=people,dc=apc38,dc=local"
         )

@@ -13,9 +13,11 @@ import {
   fetchTeamLeadCategories,
   fetchTeamLeads,
   fetchMe,
+  fetchLdapSettings,
   fetchOvhSettings,
   fetchUsers,
   login,
+  saveLdapSettings,
   saveOvhSettings,
   testLdapSettings,
   testOvhSettings,
@@ -1876,6 +1878,8 @@ const Users = ({ token }: { token: string }) => {
 const OvhSettings = ({ token }: { token: string }) => {
   const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState<any>(null)
+  const [ldapSettings, setLdapSettings] = useState<any>(null)
+  const [ldapBindPassword, setLdapBindPassword] = useState('')
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [isForbidden, setIsForbidden] = useState(false)
@@ -1897,6 +1901,8 @@ const OvhSettings = ({ token }: { token: string }) => {
     try {
       const data = await fetchOvhSettings(token)
       setSettings(data)
+      const ldapData = await fetchLdapSettings(token)
+      setLdapSettings(ldapData)
     } catch (error) {
       const err = error as Error & { status?: number }
       setSettings(null)
@@ -1940,7 +1946,7 @@ const OvhSettings = ({ token }: { token: string }) => {
   }, [])
 
   if (loading) return <div>Chargement...</div>
-  if (!settings)
+  if (!settings || !ldapSettings)
     return (
       <div className="card">
         <p className="error">
@@ -2078,6 +2084,120 @@ const OvhSettings = ({ token }: { token: string }) => {
             <pre>{testLogs.join('\n')}</pre>
           </div>
         )}
+      </div>
+      <div className="card">
+        <h3>ParamÃ¨tres LDAP</h3>
+        <div className="form-grid">
+          <label>
+            LDAP activÃ©
+            <input
+              type="checkbox"
+              checked={ldapSettings.enabled}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, enabled: e.target.checked })
+              }
+            />
+          </label>
+          <label>
+            URL LDAP
+            <input
+              value={ldapSettings.url || ''}
+              onChange={(e) => setLdapSettings({ ...ldapSettings, url: e.target.value })}
+            />
+          </label>
+          <label>
+            Bind DN admin
+            <input
+              value={ldapSettings.bind_dn || ''}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, bind_dn: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Mot de passe bind
+            <input
+              type="password"
+              placeholder={ldapSettings.has_bind_password ? 'Mot de passe dÃ©jÃ  configurÃ©' : ''}
+              value={ldapBindPassword}
+              onChange={(e) => setLdapBindPassword(e.target.value)}
+            />
+          </label>
+          <label>
+            Users base DN
+            <input
+              value={ldapSettings.user_base_dn || ''}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, user_base_dn: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Filtre utilisateur
+            <input
+              value={ldapSettings.user_filter || ''}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, user_filter: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Groups base DN
+            <input
+              value={ldapSettings.group_base_dn || ''}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, group_base_dn: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Filtre groupe
+            <input
+              value={ldapSettings.group_filter || ''}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, group_filter: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Attribut nom groupe
+            <input
+              value={ldapSettings.group_name_attr || ''}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, group_name_attr: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Groupe requis
+            <input
+              value={ldapSettings.group_required || ''}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, group_required: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Mapping groupe/rÃ´le
+            <input
+              value={ldapSettings.group_role_map || ''}
+              onChange={(e) =>
+                setLdapSettings({ ...ldapSettings, group_role_map: e.target.value })
+              }
+            />
+          </label>
+        </div>
+        <button
+          onClick={async () => {
+            const payload = { ...ldapSettings, bind_password: ldapBindPassword || undefined }
+            const data = await saveLdapSettings(token, payload)
+            setLdapSettings(data)
+            setLdapBindPassword('')
+            setMessage('ParamÃ¨tres LDAP sauvegardÃ©s')
+          }}
+        >
+          Enregistrer LDAP
+        </button>
       </div>
       <div className="card">
         <h3>Diagnostic LDAP</h3>

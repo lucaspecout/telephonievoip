@@ -12,7 +12,6 @@ services:
       LDAP_ENABLED: "true"
       LDAP_URL: ldap://lldap:3890
       LDAP_BIND_DN: uid=admin,ou=people,dc=apc38,dc=local
-      LDAP_BIND_PASSWORD: "@6jjatvoWwhgdW3Ht&Hyd2z8z8py"
       LDAP_USER_BASE_DN: ou=people,dc=apc38,dc=local
       LDAP_USER_FILTER: "(|(uid={username})(mail={username}))"
       LDAP_GROUP_BASE_DN: ou=groups,dc=apc38,dc=local

@@ -164,6 +164,22 @@ export const saveOvhSettings = async (token: string, payload: any) => {
   return response.json()
 }
 
+export const fetchLdapSettings = async (token: string) => {
+  const response = await fetch(`${API_BASE}/settings/ldap`, { headers: headers(token) })
+  if (!response.ok) throw new Error('LDAP settings failed')
+  return response.json()
+}
+
+export const saveLdapSettings = async (token: string, payload: any) => {
+  const response = await fetch(`${API_BASE}/settings/ldap`, {
+    method: 'PUT',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('LDAP settings save failed')
+  return response.json()
+}
+
 export const testOvhSettings = async (token: string) => {
   const response = await fetch(`${API_BASE}/settings/ovh/test`, {
     method: 'POST',

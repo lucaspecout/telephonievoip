@@ -70,6 +70,34 @@ class OvhSettingsOut(OvhSettingsIn):
         from_attributes = True
 
 
+class LdapSettingsIn(BaseModel):
+    enabled: bool = False
+    url: str
+    bind_dn: str
+    bind_password: Optional[str] = None
+    user_base_dn: str
+    user_filter: str
+    group_base_dn: str
+    group_filter: str
+    group_name_attr: str
+    group_required: str
+    group_role_map: str
+
+
+class LdapSettingsOut(BaseModel):
+    enabled: bool
+    url: str
+    bind_dn: str
+    has_bind_password: bool
+    user_base_dn: str
+    user_filter: str
+    group_base_dn: str
+    group_filter: str
+    group_name_attr: str
+    group_required: str
+    group_role_map: str
+
+
 class CallRecordOut(BaseModel):
     id: int
     ovh_consumption_id: str

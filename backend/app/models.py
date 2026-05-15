@@ -57,6 +57,23 @@ class OvhSettings(Base):
     last_error = Column(String(1024), nullable=True)
 
 
+class LdapSettings(Base):
+    __tablename__ = "ldap_settings"
+
+    id = Column(Integer, primary_key=True)
+    enabled = Column(Boolean, default=False, nullable=False)
+    url = Column(String(255), nullable=False)
+    bind_dn = Column(String(255), nullable=False)
+    bind_password = Column(String(255), nullable=True)
+    user_base_dn = Column(String(255), nullable=False)
+    user_filter = Column(String(255), nullable=False)
+    group_base_dn = Column(String(255), nullable=False)
+    group_filter = Column(String(255), nullable=False)
+    group_name_attr = Column(String(64), nullable=False)
+    group_required = Column(String(128), nullable=False)
+    group_role_map = Column(String(255), nullable=False)
+
+
 class CallDirection(enum.Enum):
     INBOUND = "INBOUND"
     OUTBOUND = "OUTBOUND"

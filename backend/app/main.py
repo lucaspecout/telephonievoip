@@ -20,9 +20,15 @@ from sqlalchemy.orm import Session
 from app.auth import auth_service, get_current_user, require_role
 from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db
-from app.ldap_auth import LdapAccessDenied, LdapAuthError, ldap_service
+from app.ldap_auth import (
+    LdapAccessDenied,
+    LdapAuthError,
+    ldap_config_from_settings,
+    ldap_service,
+)
 from app.models import (
     CallRecord,
+    LdapSettings,
     Role,
     User,
     UserSource,
@@ -37,6 +43,8 @@ from app.schemas import (
     DashboardSummary,
     HourlyPoint,
     LdapDiagnosticRequest,
+    LdapSettingsIn,
+    LdapSettingsOut,
     LoginRequest,
     MeResponse,
     OvhSettingsIn,
@@ -134,6 +142,46 @@ def bootstrap_admin() -> None:
             db.commit()
     finally:
         db.close()
+
+
+def get_or_create_ldap_settings(db: Session) -> LdapSettings:
+    settings_row = db.query(LdapSettings).first()
+    if settings_row:
+        return settings_row
+    config = ldap_config_from_settings()
+    settings_row = LdapSettings(
+        enabled=config.enabled,
+        url=config.url,
+        bind_dn=config.bind_dn,
+        bind_password=config.bind_password,
+        user_base_dn=config.user_base_dn,
+        user_filter=config.user_filter,
+        group_base_dn=config.group_base_dn,
+        group_filter=config.group_filter,
+        group_name_attr=config.group_name_attr,
+        group_required=config.group_required,
+        group_role_map=config.group_role_map,
+    )
+    db.add(settings_row)
+    db.commit()
+    db.refresh(settings_row)
+    return settings_row
+
+
+def ldap_settings_response(settings_row: LdapSettings) -> LdapSettingsOut:
+    return LdapSettingsOut(
+        enabled=settings_row.enabled,
+        url=settings_row.url,
+        bind_dn=settings_row.bind_dn,
+        has_bind_password=bool(settings_row.bind_password),
+        user_base_dn=settings_row.user_base_dn,
+        user_filter=settings_row.user_filter,
+        group_base_dn=settings_row.group_base_dn,
+        group_filter=settings_row.group_filter,
+        group_name_attr=settings_row.group_name_attr,
+        group_required=settings_row.group_required,
+        group_role_map=settings_row.group_role_map,
+    )
 
 
 def run_migrations() -> None:
@@ -234,7 +282,9 @@ def login(data: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     try:
-        ldap_user = ldap_service.authenticate(data.username, data.password)
+        ldap_settings = get_or_create_ldap_settings(db)
+        ldap_config = ldap_config_from_settings(ldap_settings)
+        ldap_user = ldap_service.authenticate(ldap_config, data.username, data.password)
     except LdapAccessDenied:
         raise HTTPException(status_code=403, detail="LDAP access denied")
     except LdapAuthError:
@@ -777,10 +827,45 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db)) -
     "/settings/ldap/test",
     dependencies=[Depends(require_role(Role.ADMIN))],
 )
-def test_ldap_settings(data: LdapDiagnosticRequest | None = None) -> dict:
+def test_ldap_settings(
+    data: LdapDiagnosticRequest | None = None, db: Session = Depends(get_db)
+) -> dict:
     data = data or LdapDiagnosticRequest()
-    checks = ldap_service.diagnose(data.username, data.password)
+    settings_row = get_or_create_ldap_settings(db)
+    checks = ldap_service.diagnose(
+        ldap_config_from_settings(settings_row), data.username, data.password
+    )
     return {"ok": all(check["ok"] for check in checks), "checks": checks}
+
+
+@app.get(
+    "/settings/ldap",
+    response_model=LdapSettingsOut,
+    dependencies=[Depends(require_role(Role.ADMIN))],
+)
+def get_ldap_settings(db: Session = Depends(get_db)) -> LdapSettingsOut:
+    settings_row = get_or_create_ldap_settings(db)
+    return ldap_settings_response(settings_row)
+
+
+@app.put(
+    "/settings/ldap",
+    response_model=LdapSettingsOut,
+    dependencies=[Depends(require_role(Role.ADMIN))],
+)
+def update_ldap_settings(
+    data: LdapSettingsIn, db: Session = Depends(get_db)
+) -> LdapSettingsOut:
+    settings_row = get_or_create_ldap_settings(db)
+    updates = data.model_dump()
+    bind_password = updates.pop("bind_password", None)
+    for field, value in updates.items():
+        setattr(settings_row, field, value)
+    if bind_password:
+        settings_row.bind_password = bind_password
+    db.commit()
+    db.refresh(settings_row)
+    return ldap_settings_response(settings_row)
 
 
 @app.get(
