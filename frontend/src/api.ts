@@ -134,6 +134,15 @@ export const updateUser = async (token: string, userId: number, payload: any) =>
   return response.json()
 }
 
+export const deleteUser = async (token: string, userId: number) => {
+  const response = await fetch(`${API_BASE}/users/${userId}`, {
+    method: 'DELETE',
+    headers: headers(token)
+  })
+  if (!response.ok) throw new Error('User delete failed')
+  return response.json()
+}
+
 export const fetchOvhSettings = async (token: string) => {
   const response = await fetch(`${API_BASE}/settings/ovh`, { headers: headers(token) })
   if (!response.ok) {

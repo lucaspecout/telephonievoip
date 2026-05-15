@@ -4,6 +4,7 @@ import {
   createTeamLeadCategory,
   createUser,
   createTeamLead,
+  deleteUser,
   deleteTeamLeadCategory,
   deleteTeamLead,
   exportCallsCsv,
@@ -1822,7 +1823,7 @@ const Users = ({ token }: { token: string }) => {
               <th>Rôle</th>
             <th>Changement MDP</th>
             <th>Nouveau MDP</th>
-            <th>Action</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -1864,6 +1865,24 @@ const Users = ({ token }: { token: string }) => {
                   }}
                 >
                   Modifier MDP
+                </button>
+                <button
+                  type="button"
+                  className="button-danger"
+                  onClick={async () => {
+                    if (!window.confirm(`Supprimer l'utilisateur ${user.username} ?`)) {
+                      return
+                    }
+                    await deleteUser(token, user.id)
+                    setPasswords((prev) => {
+                      const next = { ...prev }
+                      delete next[user.id]
+                      return next
+                    })
+                    load()
+                  }}
+                >
+                  Supprimer
                 </button>
               </td>
             </tr>

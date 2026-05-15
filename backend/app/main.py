@@ -823,6 +823,22 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db)) -
     return UserOut.model_validate(user)
 
 
+@app.delete("/users/{user_id}", dependencies=[Depends(require_role(Role.ADMIN))])
+def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    db.delete(user)
+    db.commit()
+    return {"status": "deleted"}
+
+
 @app.post(
     "/settings/ldap/test",
     dependencies=[Depends(require_role(Role.ADMIN))],
