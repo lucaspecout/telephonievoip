@@ -181,6 +181,19 @@ export const testOvhSettings = async (token: string) => {
   return payload
 }
 
+export const testLdapSettings = async (
+  token: string,
+  payload: { username?: string; password?: string }
+) => {
+  const response = await fetch(`${API_BASE}/settings/ldap/test`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('LDAP test failed')
+  return response.json()
+}
+
 export const triggerSync = async (token: string) => {
   const response = await fetch(`${API_BASE}/sync`, {
     method: 'POST',

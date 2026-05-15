@@ -22,14 +22,24 @@ class Role(enum.Enum):
     OPERATEUR = "OPERATEUR"
 
 
+class UserSource(enum.Enum):
+    LOCAL = "local"
+    LDAP = "ldap"
+
+
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(64), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
     role = Column(Enum(Role), nullable=False, default=Role.OPERATEUR)
     must_change_password = Column(Boolean, default=True, nullable=False)
+    source = Column(
+        Enum(UserSource, values_callable=lambda choices: [item.value for item in choices]),
+        nullable=False,
+        default=UserSource.LOCAL,
+    )
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

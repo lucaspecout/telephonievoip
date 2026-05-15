@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.models import Role, CallDirection
+from app.models import Role, CallDirection, UserSource
 
 
 class TokenResponse(BaseModel):
@@ -38,6 +38,7 @@ class UserOut(BaseModel):
     username: str
     role: Role
     must_change_password: bool
+    source: UserSource
 
     class Config:
         from_attributes = True
@@ -45,6 +46,11 @@ class UserOut(BaseModel):
 
 class MeResponse(UserOut):
     pass
+
+
+class LdapDiagnosticRequest(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
 
 
 class OvhSettingsIn(BaseModel):

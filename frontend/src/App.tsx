@@ -17,6 +17,7 @@ import {
   fetchUsers,
   login,
   saveOvhSettings,
+  testLdapSettings,
   testOvhSettings,
   triggerSync,
   updateTeamLeadCategory,
@@ -30,6 +31,7 @@ export type User = {
   username: string
   role: 'ADMIN' | 'OPERATEUR'
   must_change_password: boolean
+  source: 'local' | 'ldap'
 }
 
 const pages = {
@@ -138,6 +140,9 @@ const App = () => {
       return
     }
     if (!isAdmin && (page === 'users' || page === 'settings')) {
+      setPage('dashboard')
+    }
+    if (user.source === 'ldap' && page === 'changePassword') {
       setPage('dashboard')
     }
   }, [isAdmin, page, user])
@@ -1811,6 +1816,7 @@ const Users = ({ token }: { token: string }) => {
           <thead>
             <tr>
               <th>Nom</th>
+              <th>Source</th>
               <th>Rôle</th>
             <th>Changement MDP</th>
             <th>Nouveau MDP</th>
@@ -1821,11 +1827,13 @@ const Users = ({ token }: { token: string }) => {
           {users.map((user) => (
             <tr key={user.id}>
               <td>{user.username}</td>
+              <td>{user.source}</td>
               <td>{user.role}</td>
               <td>
                 <input
                   type="checkbox"
                   checked={user.must_change_password}
+                  disabled={user.source === 'ldap'}
                   onChange={async (e) => {
                     await updateUser(token, user.id, { must_change_password: e.target.checked })
                     load()
@@ -1837,6 +1845,7 @@ const Users = ({ token }: { token: string }) => {
                   type="password"
                   placeholder="Nouveau mot de passe"
                   value={passwords[user.id] || ''}
+                  disabled={user.source === 'ldap'}
                   onChange={(e) =>
                     setPasswords((prev) => ({ ...prev, [user.id]: e.target.value }))
                   }
@@ -1845,7 +1854,7 @@ const Users = ({ token }: { token: string }) => {
               <td>
                 <button
                   type="button"
-                  disabled={!passwords[user.id]}
+                  disabled={user.source === 'ldap' || !passwords[user.id]}
                   onClick={async () => {
                     await updateUser(token, user.id, { password: passwords[user.id] })
                     setPasswords((prev) => ({ ...prev, [user.id]: '' }))
@@ -1871,6 +1880,8 @@ const OvhSettings = ({ token }: { token: string }) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [isForbidden, setIsForbidden] = useState(false)
   const [testLogs, setTestLogs] = useState<string[]>([])
+  const [ldapCredentials, setLdapCredentials] = useState({ username: '', password: '' })
+  const [ldapChecks, setLdapChecks] = useState<any[]>([])
   const [syncStatus, setSyncStatus] = useState<'idle' | 'pending' | 'error'>('idle')
 
   const formatSyncTime = (value?: string | null) => {
@@ -2065,6 +2076,54 @@ const OvhSettings = ({ token }: { token: string }) => {
           <div className="log-block">
             <p>Logs de test:</p>
             <pre>{testLogs.join('\n')}</pre>
+          </div>
+        )}
+      </div>
+      <div className="card">
+        <h3>Diagnostic LDAP</h3>
+        <div className="form-grid">
+          <label>
+            Identifiant test
+            <input
+              value={ldapCredentials.username}
+              onChange={(e) =>
+                setLdapCredentials({ ...ldapCredentials, username: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Mot de passe test
+            <input
+              type="password"
+              value={ldapCredentials.password}
+              onChange={(e) =>
+                setLdapCredentials({ ...ldapCredentials, password: e.target.value })
+              }
+            />
+          </label>
+        </div>
+        <button
+          className="button-ghost"
+          onClick={async () => {
+            setErrorMessage('')
+            try {
+              const result = await testLdapSettings(token, ldapCredentials)
+              setLdapChecks(result.checks || [])
+            } catch (error) {
+              const err = error as Error
+              setErrorMessage(err.message || 'Test LDAP impossible')
+            }
+          }}
+        >
+          Tester LDAP
+        </button>
+        {ldapChecks.length > 0 && (
+          <div className="log-block">
+            <pre>
+              {ldapChecks
+                .map((check) => `${check.ok ? 'OK' : 'ERREUR'} - ${check.name}: ${check.detail}`)
+                .join('\n')}
+            </pre>
           </div>
         )}
       </div>

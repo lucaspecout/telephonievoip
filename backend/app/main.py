@@ -20,10 +20,12 @@ from sqlalchemy.orm import Session
 from app.auth import auth_service, get_current_user, require_role
 from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db
+from app.ldap_auth import LdapAccessDenied, LdapAuthError, ldap_service
 from app.models import (
     CallRecord,
     Role,
     User,
+    UserSource,
     OvhSettings,
     CallDirection,
     TeamLead,
@@ -34,6 +36,7 @@ from app.schemas import (
     ChangePasswordRequest,
     DashboardSummary,
     HourlyPoint,
+    LdapDiagnosticRequest,
     LoginRequest,
     MeResponse,
     OvhSettingsIn,
@@ -125,6 +128,7 @@ def bootstrap_admin() -> None:
                 password_hash=auth_service.hash_password("admin"),
                 role=Role.ADMIN,
                 must_change_password=True,
+                source=UserSource.LOCAL,
             )
             db.add(admin)
             db.commit()
@@ -152,11 +156,16 @@ def run_migrations() -> None:
             )
             command.stamp(config, "0001")
             command.upgrade(config, "head")
+            ensure_ovh_settings_schema()
+            ensure_users_schema()
             return
         command.stamp(config, "head")
+        ensure_ovh_settings_schema()
+        ensure_users_schema()
         return
     command.upgrade(config, "head")
     ensure_ovh_settings_schema()
+    ensure_users_schema()
 
 
 def ensure_ovh_settings_schema() -> None:
@@ -179,6 +188,25 @@ def ensure_ovh_settings_schema() -> None:
             connection.commit()
 
 
+def ensure_users_schema() -> None:
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        tables = inspector.get_table_names()
+        if "users" not in tables:
+            return
+        columns = {column["name"]: column for column in inspector.get_columns("users")}
+        if "source" not in columns:
+            logger.warning("Users table missing source; applying emergency ALTER.")
+            connection.execute(
+                text("ALTER TABLE users ADD COLUMN source VARCHAR(5) NOT NULL DEFAULT 'local'")
+            )
+        password_hash = columns.get("password_hash")
+        if password_hash and not password_hash.get("nullable", True):
+            logger.warning("Users password_hash is NOT NULL; allowing LDAP accounts.")
+            connection.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL"))
+        connection.commit()
+
+
 async def publish_event(payload: dict) -> None:
     if redis_client:
         await redis_client.publish("events", JSONResponse(content=payload).body.decode())
@@ -193,8 +221,45 @@ async def run_scheduler() -> None:
 @app.post("/auth/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.username == data.username).first()
-    if not user or not auth_service.verify_password(data.password, user.password_hash):
+    user_source = user.source if user else None
+    if user and (user_source is None or user_source == UserSource.LOCAL):
+        if not user.password_hash or not auth_service.verify_password(
+            data.password, user.password_hash
+        ):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        token = auth_service.create_access_token(user.username, user.role.value)
+        return TokenResponse(access_token=token)
+
+    if user and user_source != UserSource.LDAP:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    try:
+        ldap_user = ldap_service.authenticate(data.username, data.password)
+    except LdapAccessDenied:
+        raise HTTPException(status_code=403, detail="LDAP access denied")
+    except LdapAuthError:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not user and ldap_user.username != data.username:
+        user = db.query(User).filter(User.username == ldap_user.username).first()
+        if user and user.source != UserSource.LDAP:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not user:
+        user = User(
+            username=ldap_user.username,
+            password_hash=None,
+            role=ldap_user.role,
+            must_change_password=False,
+            source=UserSource.LDAP,
+        )
+        db.add(user)
+    else:
+        user.role = ldap_user.role
+        user.must_change_password = False
+        user.source = UserSource.LDAP
+    db.commit()
+    db.refresh(user)
     token = auth_service.create_access_token(user.username, user.role.value)
     return TokenResponse(access_token=token)
 
@@ -205,6 +270,10 @@ def change_password(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MeResponse:
+    if user.source == UserSource.LDAP:
+        raise HTTPException(status_code=400, detail="LDAP password is managed externally")
+    if not user.password_hash:
+        raise HTTPException(status_code=400, detail="Local password is not set")
     if not auth_service.verify_password(data.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Invalid current password")
     user.password_hash = auth_service.hash_password(data.new_password)
@@ -686,12 +755,32 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db)) -
     if data.role is not None:
         user.role = data.role
     if data.must_change_password is not None:
+        if user.source == UserSource.LDAP:
+            raise HTTPException(
+                status_code=400,
+                detail="LDAP password state is managed externally",
+            )
         user.must_change_password = data.must_change_password
     if data.password:
+        if user.source == UserSource.LDAP:
+            raise HTTPException(
+                status_code=400,
+                detail="LDAP password is managed externally",
+            )
         user.password_hash = auth_service.hash_password(data.password)
     db.commit()
     db.refresh(user)
     return UserOut.model_validate(user)
+
+
+@app.post(
+    "/settings/ldap/test",
+    dependencies=[Depends(require_role(Role.ADMIN))],
+)
+def test_ldap_settings(data: LdapDiagnosticRequest | None = None) -> dict:
+    data = data or LdapDiagnosticRequest()
+    checks = ldap_service.diagnose(data.username, data.password)
+    return {"ok": all(check["ok"] for check in checks), "checks": checks}
 
 
 @app.get(

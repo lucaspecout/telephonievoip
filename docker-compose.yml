@@ -9,9 +9,23 @@ services:
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: changeme-in-prod
       SYNC_INTERVAL_SECONDS: 4
+      LDAP_ENABLED: "true"
+      LDAP_URL: ldap://lldap:3890
+      LDAP_BIND_DN: uid=admin,ou=people,dc=apc38,dc=local
+      LDAP_BIND_PASSWORD: "@6jjatvoWwhgdW3Ht&Hyd2z8z8py"
+      LDAP_USER_BASE_DN: ou=people,dc=apc38,dc=local
+      LDAP_USER_FILTER: "(|(uid={username})(mail={username}))"
+      LDAP_GROUP_BASE_DN: ou=groups,dc=apc38,dc=local
+      LDAP_GROUP_FILTER: "(member={user_dn})"
+      LDAP_GROUP_NAME_ATTR: cn
+      LDAP_GROUP_REQUIRED: telephonie
+      LDAP_GROUP_ROLE_MAP: "telephonie:OPERATEUR"
     depends_on:
       - db
       - redis
+    networks:
+      - default
+      - lldap_ldap_net
   db:
     image: postgres:15
     environment:
@@ -24,3 +38,6 @@ services:
     image: redis:latest
 volumes:
   db_data:
+networks:
+  lldap_ldap_net:
+    external: true
