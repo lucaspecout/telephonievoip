@@ -156,7 +156,12 @@ class TeamLeadUpdate(BaseModel):
     leader_last_name: Optional[str] = None
     phone: Optional[str] = None
     status: Optional[str] = None
+    intervention_count: Optional[int] = None
     category_id: Optional[int] = None
+
+
+class TeamLeadCounterUpdate(BaseModel):
+    delta: int
 
 
 class TeamLeadOut(BaseModel):
@@ -167,6 +172,7 @@ class TeamLeadOut(BaseModel):
     phone: Optional[str]
     status: str
     intervention_started_at: Optional[datetime] = None
+    intervention_count: int = 0
     category_id: Optional[int]
 
     class Config:

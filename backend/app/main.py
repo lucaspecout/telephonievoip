@@ -53,6 +53,7 @@ from app.schemas import (
     TeamLeadCategoryIn,
     TeamLeadCategoryOut,
     TeamLeadCategoryUpdate,
+    TeamLeadCounterUpdate,
     TeamLeadOut,
     TeamLeadUpdate,
     TimeseriesPoint,
@@ -751,8 +752,27 @@ async def update_team_lead(
                 lead.intervention_started_at = datetime.utcnow()
         else:
             lead.intervention_started_at = None
+    if "intervention_count" in updates and updates["intervention_count"] is not None:
+        updates["intervention_count"] = max(0, updates["intervention_count"])
     for field, value in updates.items():
         setattr(lead, field, value)
+    db.commit()
+    db.refresh(lead)
+    await publish_event({"type": "team_leads_updated"})
+    return TeamLeadOut.model_validate(lead)
+
+
+@app.post("/team-leads/{lead_id}/intervention-count", response_model=TeamLeadOut)
+async def update_team_lead_intervention_count(
+    lead_id: int,
+    data: TeamLeadCounterUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TeamLeadOut:
+    lead = db.query(TeamLead).filter(TeamLead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Team lead not found")
+    lead.intervention_count = max(0, (lead.intervention_count or 0) + data.delta)
     db.commit()
     db.refresh(lead)
     await publish_event({"type": "team_leads_updated"})

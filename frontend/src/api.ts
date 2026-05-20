@@ -293,6 +293,20 @@ export const updateTeamLead = async (token: string, leadId: number, payload: any
   return response.json()
 }
 
+export const updateTeamLeadInterventionCount = async (
+  token: string,
+  leadId: number,
+  delta: number
+) => {
+  const response = await fetch(`${API_BASE}/team-leads/${leadId}/intervention-count`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({ delta })
+  })
+  if (!response.ok) throw new Error('Team lead intervention count update failed')
+  return response.json()
+}
+
 export const deleteTeamLead = async (token: string, leadId: number) => {
   const response = await fetch(`${API_BASE}/team-leads/${leadId}`, {
     method: 'DELETE',

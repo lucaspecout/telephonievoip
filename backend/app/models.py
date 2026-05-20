@@ -106,6 +106,7 @@ class TeamLead(Base):
     phone = Column(String(64), nullable=True)
     status = Column(String(32), nullable=False, default="Disponible")
     intervention_started_at = Column(DateTime, nullable=True)
+    intervention_count = Column(Integer, nullable=False, default=0)
     category_id = Column(Integer, ForeignKey("team_lead_categories.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(

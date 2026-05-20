@@ -24,6 +24,7 @@ import {
   testOvhSettings,
   triggerSync,
   updateTeamLeadCategory,
+  updateTeamLeadInterventionCount,
   updateTeamLead,
   updateUser
 } from './api'
@@ -652,6 +653,7 @@ type TeamLead = {
   phone: string
   status: TeamLeadStatus
   interventionStartedAt: string | null
+  interventionCount: number
   categoryId: number | null
 }
 
@@ -668,24 +670,6 @@ const knownStatusClasses: Record<string, string> = {
 }
 
 const baseStatusOptions = ['Disponible', 'En intervention', 'Indisponible']
-const interventionCountStorageKey = 'teamLeadInterventionCount'
-
-const readStoredRecord = <T extends Record<string, unknown>>(key: string): T => {
-  if (typeof window === 'undefined') {
-    return {} as T
-  }
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return {} as T
-    const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed === 'object') {
-      return parsed as T
-    }
-  } catch (error) {
-    return {} as T
-  }
-  return {} as T
-}
 
 const formatElapsedTime = (elapsedMs: number) => {
   const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000))
@@ -730,16 +714,6 @@ const TeamLeads = ({ token }: { token: string }) => {
   const [showTeamManagement, setShowTeamManagement] = useState(false)
   const [showCategoryManagement, setShowCategoryManagement] = useState(false)
   const [showCategoryCreator, setShowCategoryCreator] = useState(false)
-  const [interventionCounts, setInterventionCounts] = useState<Record<number, number>>(() => {
-    const stored = readStoredRecord<Record<string, number>>(interventionCountStorageKey)
-    return Object.entries(stored).reduce<Record<number, number>>((acc, [key, value]) => {
-      const id = Number(key)
-      if (!Number.isNaN(id) && typeof value === 'number') {
-        acc[id] = value
-      }
-      return acc
-    }, {})
-  })
   const [now, setNow] = useState(() => Date.now())
 
   const loadTeamLeads = useCallback(async () => {
@@ -753,6 +727,7 @@ const TeamLeads = ({ token }: { token: string }) => {
         phone: lead.phone ?? '',
         status: lead.status as TeamLeadStatus,
         interventionStartedAt: lead.intervention_started_at ?? null,
+        interventionCount: lead.intervention_count ?? 0,
         categoryId: lead.category_id ?? null
       }))
       setTeamLeads(mapped)
@@ -811,13 +786,6 @@ const TeamLeads = ({ token }: { token: string }) => {
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem(
-      interventionCountStorageKey,
-      JSON.stringify(interventionCounts)
-    )
-  }, [interventionCounts])
-
-  useEffect(() => {
     if (!categories.length) {
       if (formState.categoryId !== null) {
         setFormState((prev) => ({ ...prev, categoryId: null }))
@@ -852,6 +820,7 @@ const TeamLeads = ({ token }: { token: string }) => {
         phone: created.phone ?? '',
         status: created.status,
         interventionStartedAt: created.intervention_started_at ?? null,
+        interventionCount: created.intervention_count ?? 0,
         categoryId: created.category_id ?? null
       },
       ...prev
@@ -875,7 +844,8 @@ const TeamLeads = ({ token }: { token: string }) => {
           ? {
               ...lead,
               status: updated.status,
-              interventionStartedAt: updated.intervention_started_at ?? null
+              interventionStartedAt: updated.intervention_started_at ?? null,
+              interventionCount: updated.intervention_count ?? lead.interventionCount
             }
           : lead
       )
@@ -890,7 +860,8 @@ const TeamLeads = ({ token }: { token: string }) => {
           ? {
               ...lead,
               categoryId: updated.category_id ?? null,
-              interventionStartedAt: updated.intervention_started_at ?? null
+              interventionStartedAt: updated.intervention_started_at ?? null,
+              interventionCount: updated.intervention_count ?? lead.interventionCount
             }
           : lead
       )
@@ -900,12 +871,21 @@ const TeamLeads = ({ token }: { token: string }) => {
   const removeLead = async (id: number) => {
     await deleteTeamLead(token, id)
     setTeamLeads((prev) => prev.filter((lead) => lead.id !== id))
-    setInterventionCounts((prev) => {
-      if (prev[id] === undefined) return prev
-      const next = { ...prev }
-      delete next[id]
-      return next
-    })
+  }
+
+  const adjustInterventionCount = async (id: number, delta: number) => {
+    const updated = await updateTeamLeadInterventionCount(token, id, delta)
+    setTeamLeads((prev) =>
+      prev.map((lead) =>
+        lead.id === id
+          ? {
+              ...lead,
+              interventionStartedAt: updated.intervention_started_at ?? null,
+              interventionCount: updated.intervention_count ?? 0
+            }
+          : lead
+      )
+    )
   }
 
   const createCategory = async () => {
@@ -1291,7 +1271,7 @@ const TeamLeads = ({ token }: { token: string }) => {
                             const elapsedLabel = startTimestamp
                               ? formatElapsedTime(now - startTime)
                               : '—'
-                            const interventionCount = interventionCounts[lead.id] ?? 0
+                            const interventionCount = lead.interventionCount
                             return (
                               <div
                                 key={lead.id}
@@ -1387,15 +1367,7 @@ const TeamLeads = ({ token }: { token: string }) => {
                                         <button
                                           type="button"
                                           className="team-counter-button"
-                                          onClick={() =>
-                                            setInterventionCounts((prev) => ({
-                                              ...prev,
-                                              [lead.id]: Math.max(
-                                                0,
-                                                (prev[lead.id] ?? 0) - 1
-                                              )
-                                            }))
-                                          }
+                                          onClick={() => adjustInterventionCount(lead.id, -1)}
                                           aria-label="Diminuer le compteur d'intervention"
                                         >
                                           −
@@ -1406,12 +1378,7 @@ const TeamLeads = ({ token }: { token: string }) => {
                                         <button
                                           type="button"
                                           className="team-counter-button"
-                                          onClick={() =>
-                                            setInterventionCounts((prev) => ({
-                                              ...prev,
-                                              [lead.id]: (prev[lead.id] ?? 0) + 1
-                                            }))
-                                          }
+                                          onClick={() => adjustInterventionCount(lead.id, 1)}
                                           aria-label="Augmenter le compteur d'intervention"
                                         >
                                           +
